@@ -1,0 +1,47 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+**/secrets.json
+**/secrets.*.json
+**/appsettings.*.local.json
+**/*credentials*
+**/*.seed
+**/*.mnemonic
+**/*.wallet
+**/wallet.dat
+**/wallets/
+**/wallets/**
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+
+# .NET build and test outputs
+**/bin/
+**/obj/
+**/TestResults/
+artifacts/
+coverage/
+publish/
+.vs/
+.idea/
+*.user
+*.suo
+
+# Generated binaries, logs, and runtime state
+*.dll
+*.exe
+*.pdb
+*.log
+*.tmp
+*.swp
+*.bak
+.DS_Store
+
+# Local Docker/node data; never check in node or database volumes
+docker-data/
+docker-volumes/
+volumes/
+btcx-data/
+bitcoin-pocx-data/
