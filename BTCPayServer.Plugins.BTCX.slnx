@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/BTCPayServer.Plugins.BTCX/BTCPayServer.Plugins.BTCX.csproj" />
+  <Project Path="tests/BTCPayServer.Plugins.BTCX.Tests/BTCPayServer.Plugins.BTCX.Tests.csproj" />
+</Solution>

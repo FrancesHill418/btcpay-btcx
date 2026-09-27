@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <IsTestingPlatformApplication>true</IsTestingPlatformApplication>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageReference Include="xunit.v3" Version="4.0.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/BTCPayServer.Plugins.BTCX/BTCPayServer.Plugins.BTCX.csproj" />
+    <!-- The plugin deliberately does not bundle BTCPay runtime assemblies. Bring the pinned
+         server's runtime dependency graph into the test output, as the official plugin template does. -->
+    <ProjectReference Include="../../submodules/btcpayserver/BTCPayServer/BTCPayServer.csproj" />
+  </ItemGroup>
+</Project>

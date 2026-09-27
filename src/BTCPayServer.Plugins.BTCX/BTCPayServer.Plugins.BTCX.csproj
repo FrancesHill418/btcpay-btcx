@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Product>BTCX</Product>
+    <Description>BTCX payment method skeleton and administrator managed CNY rate for BTCPay Server.</Description>
+    <Version>0.1.0</Version>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+    <PreserveCompilationContext>false</PreserveCompilationContext>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ProjectReference>
+      <Properties>StaticWebAssetsEnabled=false</Properties>
+      <Private>false</Private>
+      <ExcludeAssets>runtime;native;build;buildTransitive;contentFiles</ExcludeAssets>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../submodules/btcpayserver/BTCPayServer/BTCPayServer.csproj" />
+    <EmbeddedResource Include="btcx.svg" />
+    <None Update="BTCPayServer.Plugins.BTCX.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

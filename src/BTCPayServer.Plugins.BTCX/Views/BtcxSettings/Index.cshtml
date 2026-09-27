@@ -1,0 +1,36 @@
+@model BTCPayServer.Plugins.BTCX.Controllers.BtcxSettingsViewModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    ViewData["Title"] = "BTCX payment settings";
+}
+
+<partial name="LayoutHead" />
+<div class="container">
+    <h1>BTCX payment settings</h1>
+    @if (TempData["StatusMessage"] is string status)
+    {
+        <div class="alert alert-success" role="status">@status</div>
+    }
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <form method="post" asp-action="Save" asp-area="BTCX" asp-controller="BtcxSettings">
+        @Html.AntiForgeryToken()
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="enabled" name="enabled" value="true" checked="@(Model.Enabled ? "checked" : null)" />
+            <input type="hidden" name="enabled" value="false" />
+            <label class="form-check-label" for="enabled">Enable BTCX</label>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="btcxCnyRate">BTCX/CNY rate</label>
+            <div class="input-group">
+                <span class="input-group-text">1 BTCX =</span>
+                <input class="form-control" id="btcxCnyRate" name="btcxCnyRate" value="@Model.BtcxCnyRate" inputmode="decimal" autocomplete="off" />
+                <span class="input-group-text">CNY</span>
+            </div>
+            <div class="form-text">Enter a positive decimal using a period as the decimal separator, up to eight meaningful fractional digits.</div>
+            <span class="text-danger">@Html.ValidationMessage("btcxCnyRate")</span>
+        </div>
+        <div class="mb-3"><strong>Rate source:</strong> Manual</div>
+        <div class="mb-3"><strong>Last updated:</strong> @(Model.UpdatedAt?.ToString("u") ?? "Not configured")</div>
+        <button type="submit" class="btn btn-primary">Save BTCX rate</button>
+    </form>
+</div>

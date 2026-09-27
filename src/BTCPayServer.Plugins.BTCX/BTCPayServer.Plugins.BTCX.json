@@ -1,0 +1,17 @@
+{
+  "Identifier": "BTCPayServer.Plugins.BTCX",
+  "Name": "BTCX",
+  "Version": "0.1.0",
+  "Description": "BTCX payment method skeleton with an administrator managed CNY rate.",
+  "SystemPlugin": false,
+  "Dependencies": [
+    {
+      "Identifier": "BTCPayServer",
+      "Condition": ">=2.4.4"
+    }
+  ],
+  "Documentation": null,
+  "Source": null,
+  "Author": null,
+  "AuthorLink": null
+}
