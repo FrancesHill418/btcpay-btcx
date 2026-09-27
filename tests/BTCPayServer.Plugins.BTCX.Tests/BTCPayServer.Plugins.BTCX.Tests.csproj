@@ -21,5 +21,6 @@
     <!-- The plugin deliberately does not bundle BTCPay runtime assemblies. Bring the pinned
          server's runtime dependency graph into the test output, as the official plugin template does. -->
     <ProjectReference Include="../../submodules/btcpayserver/BTCPayServer/BTCPayServer.csproj" />
+    <ProjectReference Include="../../submodules/btcpayserver/BTCPayServer.Tests/BTCPayServer.Tests.csproj" />
   </ItemGroup>
 </Project>
