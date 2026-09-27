@@ -47,13 +47,20 @@ Template and Monero snapshots are pinned in this document for audit reproduction
 
 | Component | Detected |
 |---|---|
-| OS | Linux Mint 22.3 “Zena”, Ubuntu 24.04 base, x86_64, kernel `6.14.0-37-generic` |
-| .NET SDK | Not installed / `dotnet: command not found` |
-| Docker CLI | 29.8.1, API 1.56 |
-| Docker daemon | Not inspectable: access to `/var/run/docker.sock` returned permission denied, including the read-only container listing attempt |
-| Docker Compose | v5.5.1 |
-| Git | 2.43.0 |
-| BTCPay deployment / installed plugins | **Unverified** because Docker daemon is inaccessible. Do not claim “not deployed” until `docker ps`/image inspection succeeds with an authorized daemon user. |
+| Recorded | 2026-09-27, on the dedicated VPS; host currently reports `localhost` |
+| OS / kernel | Debian GNU/Linux 13.7 (trixie), x86_64, kernel `6.12.107+deb13-cloud-amd64` |
+| User / capacity | `root`; 5 vCPU, 9.7 GiB RAM (7.6 GiB available at check), 98 GiB root filesystem (90 GiB available); no swap configured |
+| Git | 2.47.3 |
+| Docker CLI / Compose | Docker 29.8.1, Compose v5.5.1 |
+| Docker daemon | Healthy and accessible as root; storage driver `overlayfs`, cgroup v2; service active and enabled at boot |
+| Containers | No running containers at check time |
+| Node.js / npm | Node.js v22.23.3, npm 10.9.9 |
+| .NET | SDK 10.0.401; ASP.NET Core and .NET runtimes 10.0.12; `/usr/bin/dotnet`; no `global.json` in repository |
+| Rust / native build prerequisites | Debian `rustc` and Cargo 1.85.1, `build-essential`, and `pkg-config` installed for BTCX Rust components |
+| Utilities | `curl`, `jq`, `openssl`, and Python 3 available |
+| Repository | Clean at start of TASK 01.7; no compose file or application package manifest is present yet |
+
+The host and toolchain were checked directly with the TASK 01.7 command list. Rust/Cargo and native build prerequisites were installed from Debian 13 packages during TASK 01.7. No application containers or business code were created. The VPS is prepared for source work, but no BTCPay/BTCX/XBoard stack has been deployed or runtime-tested here.
 
 ## Repositories
 
