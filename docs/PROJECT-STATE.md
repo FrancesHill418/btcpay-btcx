@@ -15,7 +15,8 @@ XBoard CNY order
     → BTCPay Server v2.4.4 CNY invoice
       → BTCX plugin payment method and manual BTCX/CNY quote
         → PoCX node RPC and invoice-labeled receive address allocation
-          → (future) Phoenix URI/QR, payment monitoring and settlement
+          → electrs-btcx script-history discovery and BTCPay Processing payments
+            → (future) Phoenix URI/QR, canonical confirmation/reorg settlement
 ```
 
 XBoard's selected provider is its existing BTCPay Greenfield provider at the pinned commit below. BTCPay owns invoice lifecycle and checkout. The plugin registers `BTCX-OnChain`, a contextual manual rate provider, settings UI, quote snapshot, BTCX network/address/amount primitives, a private authenticated PoCX RPC client, and a dedicated-wallet receiving address provider. Checkout still lacks a payment URI/QR and no listener detects or settles payments; the project cannot accept BTCX payments yet.
@@ -51,6 +52,8 @@ More detailed baseline/environment records: [baseline.md](baseline.md). The hist
 - TASK 03.1 — BTCX network, address/script and atomic amount primitives; 50/50 tests at completion.
 - TASK 03.2 — PoCX RPC client; mock RPC tests and network-only queries. Commit `79e4d5f`.
 - TASK 03.3 — dedicated node-wallet receive address allocation; mock JSON-RPC covered, no live wallet connected.
+- TASK 03.0 — rate timestamp legacy serializer compatibility; unit covered, live Greenfield retrieval retest pending. Commit `5ea990c`.
+- TASK 03.4 — Electrs/bindex script-history discovery and idempotent BTCPay payment sink; in progress, mock covered only.
 
 TASK 02.1 reports 29/29 ordinary tests and 30/30 runtime smoke test cases passed, with 0 build warnings and 0 errors. This does not mean BTCX can receive or settle a payment.
 
@@ -68,15 +71,15 @@ This establishes source-level URI/address/amount compatibility only. A mock-gene
 
 - Verify real isolated regtest node/wallet startup, backup/restore and end-to-end allocation; current address provider is covered by mock RPC only.
 - Present BTCX address, fixed-decimal payment URI, and QR on BTCPay checkout.
-- Observe and reconcile BTCX transaction outputs, including durable restart/reorg handling.
-- Apply mempool/confirmation/settlement rules and update BTCPay invoice state.
+- Verify an isolated regtest Electrs/node/wallet payment flow and BTCPay PostgreSQL idempotency; current listener is mock tested only.
+- Apply canonical confirmation thresholds, mempool eviction and reorg reversal to BTCPay payment states.
 - Verify an actual Phoenix PoCX receive/send round trip against generated plugin instructions.
 - Complete XBoard-to-BTCPay webhook delivery and negative security-path integration tests.
 - Harden XBoard provider behavior for event type, invoice state/identity, amount/currency/payment method/expiry/confirmation policy, and replay/idempotency before production fulfillment. The XBoard production source has not been modified.
 
 ## Current blockers
 
-1. **Not payable:** A wallet address is now assigned, but `BtcxPaymentLinkExtension.GetPaymentLink` remains null and there is no BTCX payment monitor/settlement. Do not use the current plugin for customer payments.
+1. **Not payable:** The mock-tested listener now records `Processing` outputs, but the payment link remains null and there is no canonical confirmation/reorg settlement. Do not use the current plugin for customer payments.
 2. **Greenfield runtime retest pending:** a BTCX-scoped converter now reads the previously observed integer `rateTimestamp` and emits canonical UTC ISO strings. The isolated Greenfield `includePaymentMethods` runtime smoke still needs to be rerun; BTCPay core remains unchanged.
 3. **No live regtest integration:** RPC/wallet calls have only mock tests; no BTCX node, wallet, or indexer has been started or connected. Mainnet must remain out of scope.
 4. **XBoard webhook trust checks incomplete:** source audit found the current provider does not enforce the full event/invoice/amount/currency/method/expiry/idempotency policy required for fulfillment; end-to-end callback tests remain outstanding.
@@ -84,7 +87,7 @@ This establishes source-level URI/address/amount compatibility only. A mock-gene
 
 ## Next stage
 
-**Next TASK = TASK 03.4 — payment listener and transaction discovery.** The repository task plan also records indexer evidence and confirmation/reorg requirements; preserve those source-based constraints.
+**Current TASK = TASK 03.4 — payment listener and transaction discovery; implementation in progress. Next is canonical confirmations/reorg handling.** The repository task plan records indexer source and confirmation/reorg requirements; preserve those source-based constraints.
 
 ## Core/source boundary
 

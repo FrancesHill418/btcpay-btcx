@@ -91,5 +91,3 @@ public sealed class BtcxPaymentMethodHandler(
 }
 
 public sealed class BtcxPaymentMethodConfig { }
-
-public sealed class BtcxPaymentDetails { }

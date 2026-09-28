@@ -4,6 +4,7 @@ using BTCPayServer.Client;
 using BTCPayServer.Hosting;
 using BTCPayServer.Payments;
 using BTCPayServer.Plugins.BTCX.Payments;
+using BTCPayServer.Plugins.BTCX.Discovery;
 using BTCPayServer.Plugins.BTCX.Rates;
 using BTCPayServer.Plugins.BTCX.Rpc;
 using BTCPayServer.Plugins.BTCX.Wallet;
@@ -43,7 +44,8 @@ public sealed class Plugin : BaseBTCPayServerPlugin
         });
         services.AddSingleton<ManualRateSettingsService>();
         services.AddSingleton<IRateProvider, ManualBtcxRateProvider>();
-        services.AddSingleton<IPaymentMethodHandler, BtcxPaymentMethodHandler>();
+        services.AddSingleton<BtcxPaymentMethodHandler>();
+        services.AddSingleton<IPaymentMethodHandler>(provider => provider.GetRequiredService<BtcxPaymentMethodHandler>());
         services.AddSingleton<IPaymentLinkExtension, BtcxPaymentLinkExtension>();
         services.AddSingleton<ICheckoutModelExtension, BtcxCheckoutModelExtension>();
         services.AddOptions<BtcxRpcOptions>().BindConfiguration(BtcxRpcOptions.SectionName);
@@ -57,6 +59,10 @@ public sealed class Plugin : BaseBTCPayServerPlugin
         services.AddTransient<Func<IBtcxRpcClient>>(provider => () => provider.GetRequiredService<IBtcxRpcClient>());
         services.AddOptions<BtcxWalletOptions>().BindConfiguration(BtcxWalletOptions.SectionName);
         services.AddSingleton<IBtcxReceiveAddressProvider, BtcxReceiveAddressProvider>();
+        services.AddOptions<BtcxElectrumOptions>().BindConfiguration(BtcxElectrumOptions.SectionName);
+        services.AddSingleton<IBtcxAddressHistoryClient, BtcxElectrumClient>();
+        services.AddSingleton<IBtcxObservedPaymentSink, BtcxPaymentServiceSink>();
+        services.AddHostedService<BtcxPaymentListener>();
         services.AddStaticSearch(new ActionResultItemViewModel
         {
             RequiredPolicy = Policies.CanModifyServerSettings,

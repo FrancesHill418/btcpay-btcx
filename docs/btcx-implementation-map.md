@@ -1,22 +1,22 @@
 # BTCX implementation map (TASK 03 handoff)
 
-Audit baseline: BTCPay `v2.4.4` / `2d5a0d8077bb33af080e949031da33d84b80638d`; plugin source in this checkout. References point to the pinned BTCPay source where possible. This is a source map, not a claim that the planned listener/address flow exists.
+Audit baseline: BTCPay `v2.4.4` / `2d5a0d8077bb33af080e949031da33d84b80638d`; plugin source in this checkout. References point to pinned sources. Receiving addresses and a mock-tested payment discovery/BTCPay persistence path now exist; no live BTCX payment or settlement has been validated.
 
 ## Existing BTCX plugin and tests
 
 | Component | Current source | Current interface/state | Planned extension |
 |---|---|---|---|
-| Entry point/DI | `src/BTCPayServer.Plugins.BTCX/Plugin.cs` | `Plugin : BaseBTCPayServerPlugin`; `Execute(IServiceCollection)` adds network metadata, currency, settings, rate/payment/link/checkout services | Add address, RPC, discovery and hosted reconciliation services; keep failure isolated from BTCPay startup |
+| Entry point/DI | `src/BTCPayServer.Plugins.BTCX/Plugin.cs` | `Plugin : BaseBTCPayServerPlugin`; `Execute(IServiceCollection)` adds network metadata, currency, settings, rate/payment/link/checkout, RPC, wallet and hosted listener services | RPC config is lazy; listener is disabled by default so BTCPay startup remains independent of node/indexer availability |
 | Network marker | `BTCXNetwork.cs` | `BTCPayNetworkBase`; metadata, BTCX code/divisibility and rate rule only | Add explicit PoCX network identity/params abstraction; do not pretend it is Bitcoin/NBXplorer-compatible |
-| Handler | `Payments/BtcxPaymentMethodHandler.cs` | `IPaymentMethodHandler`; rate prompt setup and `BtcxInvoiceSnapshot` prompt details | Allocate address before save; set destination and tracked destination; robust snapshot parser; implement prompt payment data |
-| Snapshot | `Payments/BtcxInvoiceSnapshot.cs` | fiat/crypto amounts, currencies, rate, source, timestamp | Keep immutable; extend only with versioned identifiers needed for address/script/network and audit, not mutable market values |
+| Handler | `Payments/BtcxPaymentMethodHandler.cs` | `IPaymentMethodHandler`; validates quote, converts atomic units, allocates prompt destination and tracking token | URI/QR and checkout payment instructions remain |
+| Snapshot | `Payments/BtcxInvoiceSnapshot.cs` | fiat/crypto amounts, currencies, rate, source, timestamp, atomic units, network/address/script | Immutable snapshot; legacy integer timestamp converter writes canonical UTC ISO text |
 | Link | `Payments/BtcxPaymentLinkExtension.cs` | `IPaymentLinkExtension`, currently returns null | Generate canonical Phoenix `btcx:` URI with exact fixed-decimal BTCX amount |
 | Checkout | `Payments/BtcxCheckoutModelExtension.cs` | `ICheckoutModelExtension`, currently skeleton | Display address, amount, URI/QR, pending/confirmation state without secrets |
 | Rate | `Rates/ManualBtcxRateProvider.cs` | `IContextualRateProvider` | Preserve per-request latest settings and immutable invoice rate; reject missing/invalid rate |
 | Settings | `Rates/ManualBtcxRateSettings.cs`, `ManualRateSettingsService.cs`, `Controllers/BtcxSettingsController.cs`, `Views/BtcxSettings/Index.cshtml` | manual enabled/rate/source/updatedAt settings | Add safe operational controls only if required; no keys in general settings |
 | Amount | `Rates/BtcxAmountCalculator.cs` | decimal calculation and rounding helper | Ensure conversion to integer 10^8 atomic units is explicit and validated at payment boundary |
 | Unit tests | `tests/BTCPayServer.Plugins.BTCX.Tests/ManualBtcxRateTests.cs` | manual rate/calculation/snapshot/settings coverage | Add network/script/URI/serialization/idempotency/state transition suites |
-| Runtime tests | `tests/BTCPayServer.Plugins.BTCX.Tests/RuntimeSmokeTests.cs` | gated BTCPay host/plugin/rate/Greenfield smoke | Extend only after serializer blocker is fixed; then checkout payment link and listener/regtest tests |
+| Runtime tests | `tests/BTCPayServer.Plugins.BTCX.Tests/RuntimeSmokeTests.cs` | gated BTCPay host/plugin/rate/Greenfield smoke | The timestamp parser fix is unit covered; rerun Greenfield retrieval and then add checkout plus regtest listener coverage |
 
 ## BTCPay v2.4.4 extension points
 
@@ -28,8 +28,8 @@ Audit baseline: BTCPay `v2.4.4` / `2d5a0d8077bb33af080e949031da33d84b80638d`; pl
 | Payment destination tracking | `BTCPayServer/Payments/Bitcoin/BitcoinLikePaymentHandler.cs`; `BTCPayServer/Services/Invoices/InvoiceRepository.cs` | `PaymentMethodContext.TrackedDestinations`; `InvoiceRepository.GetInvoiceFromAddress` | Bitcoin-like handler adds script hash | Persist a deterministic script-derived token with invoice at prompt configuration; listener resolves tracked invoices and independently verifies output script |
 | Prompt/link | `BTCPayServer/Payments/IPaymentLinkExtension.cs`; `Payments/Bitcoin/BitcoinPaymentLinkExtension.cs` | `IPaymentLinkExtension.GetPaymentLink(PaymentPrompt, IUrlHelper?)` | Bitcoin link extension uses BIP21 | BTCX extension emits Phoenix-proven `btcx:` URI and fixed decimal amount |
 | Checkout | `BTCPayServer/Payments/ICheckoutModelExtension.cs`; `Payments/Bitcoin/BitcoinCheckoutModelExtension.cs` | `ICheckoutModelExtension.ModifyCheckoutModel(CheckoutModelContext)` | Bitcoin checkout extension | Render address/QR/link and BTCX snapshot; no claim of payment until listener records it |
-| Listener lifecycle | `BTCPayServer/Payments/Bitcoin/NBXplorerListener.cs`; service registration `BTCPayServer/Hosting/BTCPayServerServices.cs` | `IHostedService`, `EventAggregator` | `NBXplorerListener` | BTCPay exposes no generic payment-listener interface. Implement plugin-owned hosted service + polling/reconciliation; events are wakeups, persisted invoice/script state is recovery source |
-| Payment persistence | `BTCPayServer/Services/Invoices/PaymentService.cs`; `BTCPayServer/Data/PaymentData.cs` | `PaymentService.AddPayment`, `UpdatePayments`; `PaymentData`/`PaymentEntity` | NBXplorer listener | Add per-output payments idempotently, update confirmations/status; publish receipt/update events as needed |
+| Listener lifecycle | `BTCPayServer/Payments/Bitcoin/NBXplorerListener.cs`; service registration `BTCPayServer/Hosting/BTCPayServerServices.cs` | `IHostedService`, `EventAggregator` | `NBXplorerListener` | BTCX uses plugin-owned Electrs history polling and startup recovery from persisted `AddressInvoices`; canonical PoCX RPC validates every discovered transaction |
+| Payment persistence | `BTCPayServer/Services/Invoices/PaymentService.cs`; `BTCPayServer/Data/PaymentData.cs` | `PaymentService.AddPayment`, `UpdatePayments`; `PaymentData`/`PaymentEntity` | NBXplorer listener | BTCX adds one Processing payment per `{network, txid, vout}` and publishes receipt/update events; canonical confirmation and reorg updates remain |
 | Invoice state aggregation | `BTCPayServer/HostedServices/InvoiceWatcher.cs`; invoice event definitions under `BTCPayServer/Services/Invoices/` | `InvoiceEvent.ReceivedPayment`, invoice update event | InvoiceWatcher | Let core aggregate payment totals, expiry and invoice status; plugin owns only validated BTCX observations and confirmation status |
 
 Pinned source links:

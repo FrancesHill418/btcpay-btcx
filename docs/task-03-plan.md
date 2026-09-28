@@ -1,6 +1,6 @@
 # TASK 03 — BTCX receiving payment implementation plan
 
-Status: planning only. No blockchain payment flow is implemented. Do not treat this document as approval to deploy or use mainnet.
+Status: staged implementation. Network/address/amount, node RPC, receiving address provider and mock payment discovery are implemented; no real blockchain payment is settled. Do not treat this document as approval to deploy or use mainnet.
 
 ## Baseline and design constraints
 

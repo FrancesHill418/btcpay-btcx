@@ -60,7 +60,17 @@ public sealed class BtcxReceiveAddressProviderTests
         Assert.DoesNotContain("getnewaddress", wallet.Methods);
     }
 
-    private static BtcxReceiveAddressProvider CreateProvider(FakeWalletHandler handler)
+    [Fact]
+    public async Task Development_address_provider_refuses_mainnet_configuration()
+    {
+        var wallet = new FakeWalletHandler("main");
+        var rpc = CreateProvider(wallet, network: "main");
+        await Assert.ThrowsAsync<Microsoft.Extensions.Options.OptionsValidationException>(() =>
+            rpc.GetOrAllocateAsync("invoice-mainnet", TestContext.Current.CancellationToken));
+        Assert.Empty(wallet.Methods);
+    }
+
+    private static BtcxReceiveAddressProvider CreateProvider(FakeWalletHandler handler, string network = "regtest")
     {
         var rpc = new BtcxRpcClient(new HttpClient(handler), Options.Create(new BtcxRpcOptions
         {
@@ -69,7 +79,7 @@ public sealed class BtcxReceiveAddressProviderTests
         }));
         return new BtcxReceiveAddressProvider(() => rpc, Options.Create(new BtcxWalletOptions
         {
-            WalletName = "receive-only", Network = "regtest"
+            WalletName = "receive-only", Network = network
         }));
     }
 

@@ -19,6 +19,8 @@ public sealed class BtcxWalletOptions
             string.Equals(Network, value.ChainName, StringComparison.OrdinalIgnoreCase));
         if (networkParameters is null)
             throw new OptionsValidationException(nameof(BtcxWalletOptions), typeof(BtcxWalletOptions), ["Network must be main, test, or regtest."]);
+        if (networkParameters.Id == BtcxNetworkId.Mainnet)
+            throw new OptionsValidationException(nameof(BtcxWalletOptions), typeof(BtcxWalletOptions), ["BTCX wallet allocation is restricted to testnet and regtest in this development build."]);
         return (WalletName, networkParameters.Id);
     }
 }
