@@ -9,4 +9,5 @@ public sealed record BtcxPaymentDetails(
     string? BlockHash,
     int? BlockHeight,
     int Confirmations,
-    bool IsMempool);
+    bool IsMempool,
+    bool SignalsRbf = false);

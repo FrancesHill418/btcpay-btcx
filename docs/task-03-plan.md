@@ -1,6 +1,6 @@
 # TASK 03 — BTCX receiving payment implementation plan
 
-Status: staged implementation. Network/address/amount, node RPC, receiving address provider and mock payment discovery are implemented; no real blockchain payment is settled. Do not treat this document as approval to deploy or use mainnet.
+Status: staged implementation. Network/address/amount, node RPC, receiving address provider, mock payment discovery and confirmation/reorg state mapping are implemented; no real blockchain payment has been accepted end-to-end. Do not treat this document as approval to deploy or use mainnet.
 
 ## Baseline and design constraints
 

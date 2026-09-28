@@ -14,7 +14,8 @@ public sealed record BtcxObservedOutput(
     string? BlockHash,
     int? BlockHeight,
     int Confirmations,
-    bool IsMempool)
+    bool IsMempool,
+    bool SignalsRbf = false)
 {
     public string PaymentId => $"{Network}-{TransactionId}-{OutputIndex.ToString(CultureInfo.InvariantCulture)}";
 }
@@ -22,6 +23,7 @@ public sealed record BtcxObservedOutput(
 public interface IBtcxObservedPaymentSink
 {
     Task<bool> RecordAsync(string invoiceId, BtcxObservedOutput output, CancellationToken cancellationToken = default);
+    Task SynchronizeInvoiceAsync(string invoiceId, IReadOnlyCollection<BtcxObservedOutput> currentOutputs, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -43,6 +45,8 @@ public sealed class BtcxPaymentReconciler(
         var scriptHash = BtcxElectrumScriptHash.FromScriptPubKey(expectedScript.ToBytes());
         var history = await historyClient.GetHistoryAsync(scriptHash, cancellationToken).ConfigureAwait(false);
         var blockHashes = new Dictionary<int, string>();
+        var outputs = new Dictionary<string, BtcxObservedOutput>(StringComparer.Ordinal);
+        var complete = true;
 
         foreach (var entry in history.GroupBy(item => item.TxId, StringComparer.OrdinalIgnoreCase).Select(group => group.First()))
         {
@@ -65,6 +69,7 @@ public sealed class BtcxPaymentReconciler(
             catch (BtcxRpcException ex) when (ex.RpcCode == -5)
             {
                 // The index can lag a block/mempool transition. Recheck next poll.
+                complete = false;
                 continue;
             }
 
@@ -73,21 +78,29 @@ public sealed class BtcxPaymentReconciler(
             if (blockHash is not null &&
                 (transaction.InActiveChain is false || transaction.Confirmations is not > 0 ||
                  !string.Equals(transaction.BlockHash, blockHash, StringComparison.OrdinalIgnoreCase)))
+            {
+                complete = false;
                 continue;
+            }
 
             foreach (var output in MatchOutputs(transaction, expectedScript))
             {
                 var confirmed = transaction.BlockHash is not null && transaction.Confirmations is > 0 && transaction.InActiveChain is not false;
-                _ = await sink.RecordAsync(invoiceId, output with
+                var observed = output with
                 {
                     Network = chainName,
                     BlockHash = confirmed ? transaction.BlockHash : null,
                     BlockHeight = confirmed ? entry.Height : null,
                     Confirmations = confirmed ? transaction.Confirmations!.Value : 0,
-                    IsMempool = !confirmed
-                }, cancellationToken).ConfigureAwait(false);
+                    IsMempool = !confirmed,
+                    SignalsRbf = SignalsRbf(transaction)
+                };
+                outputs[observed.PaymentId] = observed;
+                _ = await sink.RecordAsync(invoiceId, observed, cancellationToken).ConfigureAwait(false);
             }
         }
+        if (complete)
+            await sink.SynchronizeInvoiceAsync(invoiceId, outputs.Values.ToArray(), cancellationToken).ConfigureAwait(false);
     }
 
     internal static IReadOnlyList<BtcxObservedOutput> MatchOutputs(BtcxDecodedTransaction transaction, Script expectedScript)
@@ -116,5 +129,19 @@ public sealed class BtcxPaymentReconciler(
             }
         }
         return matches;
+    }
+
+    private static bool SignalsRbf(BtcxDecodedTransaction transaction)
+    {
+        if (transaction.Inputs.ValueKind != JsonValueKind.Array)
+            throw new BtcxRpcProtocolException("PoCX node returned a transaction without a decoded input array.");
+        try
+        {
+            return transaction.Inputs.EnumerateArray().Any(input => input.GetProperty("sequence").GetUInt32() < 0xfffffffe);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+        {
+            throw new BtcxRpcProtocolException("PoCX node returned a transaction with an invalid input sequence.");
+        }
     }
 }

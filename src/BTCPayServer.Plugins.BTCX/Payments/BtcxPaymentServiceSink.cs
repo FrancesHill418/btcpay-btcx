@@ -1,5 +1,6 @@
 using BTCPayServer.Data;
 using BTCPayServer.Events;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Payments;
 using BTCPayServer.Plugins.BTCX.Discovery;
 using BTCPayServer.Services.Invoices;
@@ -59,7 +60,8 @@ public sealed class BtcxPaymentServiceSink(
             output.BlockHash,
             output.BlockHeight,
             output.Confirmations,
-            output.IsMempool));
+            output.IsMempool,
+            output.SignalsRbf));
 
         var payment = await paymentService.AddPayment(paymentData, [output.TransactionId]).ConfigureAwait(false);
         if (payment is null)
@@ -77,6 +79,63 @@ public sealed class BtcxPaymentServiceSink(
         eventAggregator.Publish(new InvoiceNeedUpdateEvent(invoiceId));
         return true;
     }
+
+    public async Task SynchronizeInvoiceAsync(string invoiceId, IReadOnlyCollection<BtcxObservedOutput> currentOutputs, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var invoice = await invoiceRepository.GetInvoice(invoiceId).ConfigureAwait(false);
+        if (invoice is null)
+            return;
+        var current = currentOutputs.ToDictionary(output => output.PaymentId, StringComparer.Ordinal);
+        var updates = new List<PaymentEntity>();
+        foreach (var payment in invoice.GetPayments(false).Where(payment => payment.PaymentMethodId == _paymentMethodId))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var details = paymentMethodHandler.ParsePaymentDetails(payment.Details) as BtcxPaymentDetails;
+            if (details is null)
+                continue;
+            if (!current.TryGetValue(payment.Id, out var output))
+            {
+                if (payment.Status != PaymentStatus.Unaccounted)
+                {
+                    payment.Status = PaymentStatus.Unaccounted;
+                    updates.Add(payment);
+                }
+                continue;
+            }
+
+            var snapshot = new BtcxPaymentDetails(output.TransactionId, output.OutputIndex, output.Network,
+                output.ScriptPubKeyHex, output.BlockHash, output.BlockHeight, output.Confirmations,
+                output.IsMempool, output.SignalsRbf);
+            var status = IsSettled(invoice.SpeedPolicy, output.Confirmations, output.SignalsRbf)
+                ? PaymentStatus.Settled
+                : PaymentStatus.Processing;
+            if (details != snapshot || payment.Status != status)
+            {
+                payment.SetDetails(paymentMethodHandler, snapshot);
+                payment.Status = status;
+                updates.Add(payment);
+            }
+        }
+
+        if (updates.Count == 0)
+            return;
+        await paymentService.UpdatePayments(updates).ConfigureAwait(false);
+        eventAggregator.Publish(new InvoiceNeedUpdateEvent(invoiceId));
+    }
+
+    public static int RequiredConfirmations(SpeedPolicy speedPolicy, bool signalsRbf) => speedPolicy switch
+    {
+        SpeedPolicy.HighSpeed when signalsRbf => 1,
+        SpeedPolicy.HighSpeed => 0,
+        SpeedPolicy.MediumSpeed => 1,
+        SpeedPolicy.LowMediumSpeed => 2,
+        SpeedPolicy.LowSpeed => 6,
+        _ => 6
+    };
+
+    private static bool IsSettled(SpeedPolicy speedPolicy, int confirmations, bool signalsRbf) =>
+        RequiredConfirmations(speedPolicy, signalsRbf) <= confirmations;
 
     private void Remember(string key) => _seenOutpoints.Set(key, true, new MemoryCacheEntryOptions { Size = 1 });
 

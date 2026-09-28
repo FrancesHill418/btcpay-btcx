@@ -81,6 +81,19 @@ public sealed class BtcxPaymentReconcilerTests
     }
 
     [Fact]
+    public async Task Replaceable_transaction_input_is_detected_for_high_speed_policy()
+    {
+        var sink = new FakeSink();
+        var reconciler = CreateReconciler(sink,
+            [new BtcxAddressHistoryEntry(TxOne, 0)],
+            [Transaction(TxOne, Output(0, "1", ReceiveScriptHex), signalsRbf: true)]);
+
+        await reconciler.ReconcileInvoiceAsync("invoice-rbf", BtcxNetworkId.Regtest, ReceiveScript, TestContext.Current.CancellationToken);
+
+        Assert.True(Assert.Single(sink.Outputs.Values).SignalsRbf);
+    }
+
+    [Fact]
     public async Task Stale_noncanonical_and_indexer_missing_transactions_are_ignored()
     {
         var sink = new FakeSink();
@@ -109,12 +122,14 @@ public sealed class BtcxPaymentReconcilerTests
     private static BtcxPaymentReconciler CreateReconciler(FakeSink sink, IReadOnlyList<BtcxAddressHistoryEntry> history, FakeChainReader rpc) =>
         new(new FakeHistoryClient(history), rpc, sink);
 
-    private static BtcxDecodedTransaction Transaction(string txid, string outputs, string? blockHash = null, int? confirmations = null, bool? inActiveChain = null)
+    private static BtcxDecodedTransaction Transaction(string txid, string outputs, string? blockHash = null, int? confirmations = null, bool? inActiveChain = null, bool signalsRbf = false)
     {
         using var json = JsonDocument.Parse("[" + outputs + "]");
+        using var inputs = JsonDocument.Parse(signalsRbf ? "[{\"sequence\":4294967293}]" : "[]");
         return new BtcxDecodedTransaction
         {
             TxId = txid,
+            Inputs = inputs.RootElement.Clone(),
             Outputs = json.RootElement.Clone(),
             BlockHash = blockHash,
             Confirmations = confirmations,
@@ -159,6 +174,12 @@ public sealed class BtcxPaymentReconcilerTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(Outputs.TryAdd(invoiceId + ":" + output.PaymentId, output));
+        }
+
+        public Task SynchronizeInvoiceAsync(string invoiceId, IReadOnlyCollection<BtcxObservedOutput> currentOutputs, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
         }
     }
 }
