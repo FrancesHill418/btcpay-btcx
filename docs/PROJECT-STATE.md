@@ -3,6 +3,8 @@
 **Synchronized:** 2026-09-28  
 **Current implementation:** MILESTONE 03 passed a gated BTCPay/PostgreSQL + BTCX regtest acceptance using real electrs-btcx against a development-only PoCX REST compatibility backport; wallet backup/restore passed. XBoard live order→Greenfield→BTCX regtest payment→confirmation→signed webhook→paid-order E2E passed in an isolated environment. Phoenix parser is **PROTOCOL COMPATIBLE**, but **REAL DEVICE E2E VERIFIED: NO** because no device/emulator runtime is available. Development validation remains incomplete on the Phoenix device gate. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
+**RELEASE PACKAGING staging validation (2026-09-28): INCOMPLETE.** The current Compose stack is regtest-only. `bitcoin-pocx` and `electrs-btcx` share a network namespace (`network_mode: service:bitcoin-pocx`); the node REST endpoint returned HTTP 200 from both that namespace's `127.0.0.1` and the Compose DNS name `bitcoin-pocx`. Electrum `server.version` passed and `blockchain.headers.subscribe` matched the node at height 102. PostgreSQL and BTCPay are healthy, and BTCPay loaded BTCX plugin 0.1.0. No BTCX invoice/payment or XBoard callback was run against this Compose instance: the BTCPay datadir was newly initialized, with no configured store/rate, and XBoard is not part of this Compose package or running in this environment. Do not report **STAGING RELEASE READY** until the live BTCX payment and XBoard order/webhook flow pass against this stack. Details: [staging deployment](staging-deployment.md) and [healthchecks](../integrations/staging/HEALTHCHECKS.md).
+
 ## Final validation status
 
 | Validation | Status | Evidence / scope |
@@ -14,6 +16,8 @@
 | Phoenix real-device E2E | **PENDING** | No attached device, `adb`, Flutter runtime, Android SDK/emulator or Phoenix installable was available; QR scan/send/receive was not verified. |
 | `dotnet build` | **PASS** | 0 warnings, 0 errors. |
 | `dotnet test` | **PASS** | 106 passed, 0 failed, 1 gated runtime smoke skipped; prior isolated runtime smoke passed 107/107. |
+| RELEASE PACKAGING Compose health | **PASS** | regtest node, electrs-btcx, PostgreSQL and BTCPay healthy; plugin loaded; node REST 200 from node/electrs namespace and service DNS; Electrum indexed height 102 matched node height 102. |
+| RELEASE PACKAGING BTCX payment → XBoard E2E | **PENDING** | Current Compose BTCPay has no configured store/manual rate or test invoice; no XBoard service is running. Prior isolated XBoard E2E is recorded separately and does not validate this deployment. |
 
 ## Project goal
 
@@ -110,3 +114,5 @@ No BTCPay Server core files or XBoard production files are changed. Do not deplo
 ## Release preparation
 
 The `development-complete` tag points to baseline commit `57995b3ecc154069c94d06c967cbac2c54ab3324`. The repeatable isolated staging procedure, production deployment gates, backup/recovery guidance, and release checklist are in [staging-deployment.md](staging-deployment.md), [production-deployment.md](production-deployment.md), [backup-and-recovery.md](backup-and-recovery.md), and [release-checklist.md](release-checklist.md). Staging uses regtest only. Production remains unsupported: mainnet wallet allocation is explicitly rejected, Phoenix real-device E2E is pending, the node/indexer compatibility patch is development-only, and production key custody/rate/recovery controls are unresolved. Release archives must exclude private keys, wallet seeds, API keys, webhook secrets, `.env` files, databases, Docker volumes, and BTCX blockchain data.
+
+Current staging service names were resolved from `docker compose config`/`ps`: `bitcoin-pocx`, `electrs-btcx`, `postgres`, `wallet-init`, and `btcpay`. Electrs deliberately uses the node service network namespace because pinned bindex-btcx requests Bitcoin REST on localhost. Do not change its RPC/REST target to service DNS while this topology remains in place. The regtest staging acceptance is still pending the BTCX payment and XBoard E2E listed above.

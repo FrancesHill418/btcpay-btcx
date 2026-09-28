@@ -14,7 +14,7 @@ This runbook describes an isolated, repeatable **regtest staging** deployment fr
 | electrs-btcx | tag `v0.11.1-btcx.1`, commit `2f78c63e20215e20944767f0901209c4d740fe5b` |
 | XBoard source for provider integration | commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` |
 
-The pinned, unmodified Bitcoin-PoCX source lacks `/rest/blockpart/`, which the pinned bindex/electrs startup probe requires. The repository contains `integrations/electrs-btcx/bitcoin-pocx-v30-blockpart-compat.patch`, a development-only backport tested on isolated regtest. Rebuild the node from the exact pinned source plus this patch for staging validation. This compatibility patch is not an upstream release and is **not approved as a production artifact**; revalidate it against a supported upstream version before any production review. Do not change consensus rules.
+The pinned, unmodified Bitcoin-PoCX source lacks `/rest/blockpart/`, which the pinned bindex/electrs startup probe requires. The repository contains `integrations/electrs-btcx/bitcoin-pocx-v30-blockpart-compat.patch` and `integrations/electrs-btcx/bitcoin-pocx-v30-net-processing-compat.patch`, development-only compatibility backports tested on isolated regtest. The staging node Dockerfile applies both patches to the exact pinned source. They are not upstream releases and are **not approved as production artifacts**; revalidate against a supported upstream version before any production review. Do not change consensus rules.
 
 ## Build the plugin artifact
 
@@ -51,6 +51,7 @@ Use a dedicated development host and a private Docker network (for example `btcx
 * The node's RPC and REST API use its RPC HTTP listener. For a regtest container, a typical internal configuration uses `regtest=1`, `server=1`, `rest=1`, `txindex=1`, `rpcbind=0.0.0.0`, and `rpcallowip=<the exact backend subnet>`. Use a strong operator-generated `rpcauth` entry and inject its matching password into the BTCPay process through the host's secret manager. Never put credentials in a checked-in Compose file. Do not use broad `0.0.0.0/0` allow rules.
 * For an isolated regtest, keep P2P private as well; do not add public peer exposure. Node ports and paths below are container-internal examples and must match the chosen node image/configuration.
 * Configure electrs/bindex to use the same regtest node, its private RPC/REST service, and its own persistent **staging-only** index data. Expose the Electrum TCP listener only on `btcx-backend`.
+* In this package, `electrs-btcx` uses `network_mode: service:bitcoin-pocx`. It shares the node's network namespace so bindex's localhost REST requests reach Bitcoin-PoCX. The Compose service DNS name `bitcoin-pocx` also resolves to that node address from BTCPay and the shared namespace. Keep electrs' `--daemon-rpc-addr` and the bindex REST localhost behavior aligned with this topology; the Electrum healthcheck probes `127.0.0.1:60401` in the shared namespace.
 * The node, electrs index, BTCPay database, and wallet data belong in separate operator-managed staging volumes. These volumes are runtime state, not release contents or backup-free disposable artifacts.
 
 ## Plugin settings
@@ -96,3 +97,9 @@ The patch's automated provider tests cover duplicate delivery, underpayment, ove
 Use [release-checklist.md](release-checklist.md) and record image digests, source commits, plugin artifact checksum, test invoice IDs, regtest transaction IDs, confirmation depth, webhook outcome, and operator/time. Do not record credentials or seeds. Verify runtime data resides only in the named staging volumes. Before decommissioning, stop the services and use the backup runbook if the test data must be retained; otherwise remove only the specifically identified staging environment through its normal owner-controlled lifecycle.
 
 Phoenix PoCX v2.4.0 parser fixture compatibility is confirmed, but real device QR scan/send/receive remains pending. Do not mark staging device E2E complete based on parser fixtures.
+
+### 2026-09-28 current Compose validation record
+
+Compose resolved these services: `bitcoin-pocx`, `electrs-btcx`, `postgres`, `wallet-init`, and `btcpay`. The backend network is the internal `btcx-staging-backend`; electrs shares the Bitcoin-PoCX network namespace. From both the node's `127.0.0.1` listener and the electrs container, `GET /rest/chaininfo.json` returned HTTP 200 (the electrs container also reached `http://bitcoin-pocx:18443/rest/chaininfo.json`, HTTP 200). `server.version` succeeded and `blockchain.headers.subscribe` reported height 102, matching node `getblockchaininfo`. The wallet `btcx-receive` was loaded. PostgreSQL and BTCPay healthchecks passed; BTCPay logs confirmed plugin `BTCPayServer.Plugins.BTCX` 0.1.0 loaded.
+
+This is a **partial** staging validation. No invoice, BTCX payment, confirmation, or current-stack XBoard callback was exercised. The BTCPay datadir was newly initialized and XBoard is external to this Compose package and was not running. Do not mark the staging release ready until a disposable CNY order completes the full Greenfield → BTCX regtest payment → signed `InvoiceSettled` callback → paid XBoard order flow against this BTCPay instance.

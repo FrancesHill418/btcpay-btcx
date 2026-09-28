@@ -1,0 +1,168 @@
+name: ${COMPOSE_PROJECT_NAME:-btcx-staging}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: btcpayserver
+      POSTGRES_USER: btcpay
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - btcx_backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U btcpay -d btcpayserver"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    stop_grace_period: 1m
+
+  bitcoin-pocx:
+    image: bitcoin-pocx:development-regtest
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: integrations/staging/bitcoin-pocx/Dockerfile
+      args:
+        BTCX_NODE_COMMIT: 005bf0098e217b76a2627bfae458dff4f5718dd5
+        BTCX_CORE_COMMIT: b88b852644f629cd5f25b3424d11b462462c24b3
+        BUILD_JOBS: ${BUILD_JOBS:-2}
+    restart: unless-stopped
+    environment:
+      BTCX_BACKEND_SUBNET: ${BTCX_BACKEND_SUBNET:-172.30.50.0/24}
+    volumes:
+      - btcx_node_data:/data
+      - btcx_rpc_cookie:/run/btcx-rpc
+    networks:
+      btcx_backend:
+        aliases:
+          - bitcoin-pocx
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-regtest", "-rpcconnect=127.0.0.1", "-rpcport=18443", "-rpccookiefile=/run/btcx-rpc/.cookie", "getblockchaininfo"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    stop_grace_period: 2m
+
+  wallet-init:
+    image: bitcoin-pocx:development-regtest
+    entrypoint: ["/usr/local/bin/wallet-init.sh"]
+    restart: "no"
+    volumes:
+      - btcx_rpc_cookie:/run/btcx-rpc:ro
+    networks:
+      - btcx_backend
+    depends_on:
+      bitcoin-pocx:
+        condition: service_healthy
+
+  electrs-btcx:
+    image: electrs-btcx:development-regtest
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: integrations/staging/electrs/Dockerfile
+      args:
+        BINDEX_COMMIT: eda7c70660baa06affef464c7ea1e131c39304f1
+        ELECTRS_COMMIT: 2f78c63e20215e20944767f0901209c4d740fe5b
+    restart: unless-stopped
+    command:
+      - --network=regtest
+      - --daemon-rpc-addr=127.0.0.1:18443
+      - --electrum-rpc-addr=0.0.0.0:60401
+      - --cookie-file=/run/btcx-rpc/.cookie
+      - --db-dir=/data/electrs
+    volumes:
+      - btcx_electrs_data:/data
+      - btcx_rpc_cookie:/run/btcx-rpc:ro
+    # bindex-btcx currently uses http://localhost:<regtest RPC port> for
+    # Bitcoin REST. Sharing the node's isolated network namespace keeps that
+    # upstream behavior working without exposing REST/RPC outside this stack.
+    network_mode: service:bitcoin-pocx
+    depends_on:
+      bitcoin-pocx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "/usr/local/bin/electrs-healthcheck.py", "127.0.0.1", "60401"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    stop_grace_period: 1m
+
+  btcpay:
+    image: btcpay-btcx:staging
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: integrations/staging/btcpay/Dockerfile
+      args:
+        BTCPAY_BASE_IMAGE: btcpayserver/btcpayserver:2.4.4
+        DOTNET_SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:10.0.401
+    restart: unless-stopped
+    entrypoint: ["/usr/local/bin/btcpay-btcx-entrypoint.sh"]
+    environment:
+      BTCX__RPC__Endpoint: http://bitcoin-pocx:18443/
+      BTCX__RPC__CookieFilePath: /run/btcx-rpc/.cookie
+      BTCX__Wallet__Network: regtest
+      BTCX__Wallet__WalletName: btcx-receive
+      BTCX__Electrum__Enabled: "true"
+      BTCX__Electrum__Endpoint: tcp://bitcoin-pocx:60401/
+      BTCX__Electrum__PollIntervalSeconds: "15"
+      BTCPAY_NETWORK: regtest
+      BTCPAY_PORT: "49392"
+      BTCPAY_BIND: 0.0.0.0
+      BTCPAY_NODEFAULTCHAIN: "true"
+      BTCPAY_PLUGINDIR: /plugins
+      BTCPAY_DISABLE_REGISTRATION: ${BTCPAY_DISABLE_REGISTRATION:-false}
+    secrets:
+      - postgres_password
+    ports:
+      - "${STAGING_HTTP_BIND:-127.0.0.1}:${STAGING_HTTP_PORT:-49392}:49392"
+    volumes:
+      - btcpay_data:/datadir
+      - btcx_rpc_cookie:/run/btcx-rpc:ro
+    networks:
+      - btcx_backend
+      - btcx_edge
+    depends_on:
+      postgres:
+        condition: service_healthy
+      wallet-init:
+        condition: service_completed_successfully
+      electrs-btcx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1:49392/api/v1/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+    stop_grace_period: 1m
+
+networks:
+  btcx_backend:
+    name: ${BTCX_BACKEND_NETWORK:-btcx-staging-backend}
+    internal: true
+    ipam:
+      config:
+        - subnet: ${BTCX_BACKEND_SUBNET:-172.30.50.0/24}
+  btcx_edge:
+    name: ${COMPOSE_PROJECT_NAME:-btcx-staging}-edge
+
+volumes:
+  btcpay_data:
+  btcx_node_data:
+  btcx_electrs_data:
+  btcx_rpc_cookie:
+  postgres_data:
+
+secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:-./secrets/postgres-password}

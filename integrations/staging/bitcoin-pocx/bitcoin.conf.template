@@ -1,0 +1,11 @@
+regtest=1
+server=1
+rest=1
+txindex=1
+fallbackfee=0.0002
+
+[regtest]
+rpcbind=0.0.0.0
+rpcallowip=__RPC_ALLOWIP__
+rpccookiefile=/run/btcx-rpc/.cookie
+port=18444
