@@ -7,7 +7,7 @@ using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Plugins.BTCX.Payments;
 
-public sealed class BtcxCheckoutModelExtension : ICheckoutModelExtension
+public sealed class BtcxCheckoutModelExtension(BtcxPaymentMethodHandler paymentMethodHandler) : ICheckoutModelExtension
 {
     public PaymentMethodId PaymentMethodId { get; } = PaymentTypes.CHAIN.GetPaymentMethodId(Plugin.CryptoCode);
     public string Image => "btcx.svg";
@@ -26,5 +26,18 @@ public sealed class BtcxCheckoutModelExtension : ICheckoutModelExtension
         context.Model.CheckoutBodyComponentName = BitcoinCheckoutModelExtension.CheckoutBodyComponentName;
         context.Model.InvoiceBitcoinUrl = link;
         context.Model.InvoiceBitcoinUrlQR = link;
+
+        var leastConfirmed = context.InvoiceEntity.GetPayments(false)
+            .Where(payment => payment.PaymentMethodId == PaymentMethodId)
+            .Select(payment => (Payment: payment, Details: paymentMethodHandler.ParsePaymentDetails(payment.Details) as BtcxPaymentDetails))
+            .Where(item => item.Details is not null)
+            .OrderBy(item => item.Details!.Confirmations)
+            .FirstOrDefault();
+        if (leastConfirmed.Details is { } details)
+        {
+            context.Model.ReceivedConfirmations = details.Confirmations;
+            context.Model.RequiredConfirmations = BtcxPaymentServiceSink.RequiredConfirmations(
+                context.InvoiceEntity.SpeedPolicy, details.SignalsRbf);
+        }
     }
 }

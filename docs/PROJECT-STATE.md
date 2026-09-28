@@ -58,6 +58,7 @@ More detailed baseline/environment records: [baseline.md](baseline.md). The hist
 - TASK 03.4 — Electrs/bindex script-history discovery and idempotent BTCPay payment sink. Commit `6f706c4`; mock covered only.
 - TASK 03.5 — canonical confirmation state mapping and reorg/dropped-output reconciliation. In progress; policy follows pinned BTCPay v2.4.4 SpeedPolicy.
 - TASK 03.6 — Phoenix-compatible `btcx:` URI and standard checkout QR. Implemented and unit/source verified; live Phoenix/regtest scan pending.
+- TASK 03.7 — completed BTCX payment method flow: manual rate snapshot → atomic amount → unique receive address → URI/QR → idempotent output payments → SpeedPolicy confirmation/reorg state. Mock/unit verified; live regtest pending.
 
 TASK 02.1 reports 29/29 ordinary tests and 30/30 runtime smoke test cases passed, with 0 build warnings and 0 errors. This does not mean BTCX can receive or settle a payment.
 
@@ -91,7 +92,7 @@ This establishes source-level URI/address/amount compatibility only. A mock-gene
 
 ## Next stage
 
-**Current TASK = TASK 03.6 — Phoenix URI/QR; source-based implementation is complete. Next is completing the end-to-end BTCX payment method.** The repository task plan records source and regtest requirements; preserve those constraints.
+**MILESTONE 03 implementation stages 03.1–03.7 are complete; live development acceptance remains. Next is MILESTONE 04 — XBoard end-to-end integration.** Continue with source/runtime evidence and retain all production boundaries.
 
 ## Core/source boundary
 
