@@ -4,6 +4,8 @@ namespace BTCPayServer.Plugins.BTCX;
 
 public sealed class BTCXNetwork : BTCPayNetworkBase
 {
+    public IReadOnlyList<BtcxNetworkParameters> Networks => BtcxNetworkParameters.All;
+
     public BTCXNetwork()
     {
         CryptoCode = Plugin.CryptoCode;

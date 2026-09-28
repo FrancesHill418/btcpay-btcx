@@ -126,9 +126,16 @@ public sealed class ManualBtcxRateTests
     }
 
     [Fact]
-    public void LargeAmountCalculatesWithoutBinaryFloatingPoint()
+    public void AmountAboveBtcxConsensusMaximumIsRejected()
     {
-        Assert.Equal(5_000_000_000m, BtcxAmountCalculator.Calculate(1_000_000_000m, 0.20m, Plugin.Divisibility));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            BtcxAmountCalculator.Calculate(1_000_000_000m, 0.20m, Plugin.Divisibility));
+    }
+
+    [Fact]
+    public void MaximumConsensusAmountCanBeCalculated()
+    {
+        Assert.Equal(21_000_000m, BtcxAmountCalculator.Calculate(21_000_000m, 1m, Plugin.Divisibility));
     }
 
     [Fact]

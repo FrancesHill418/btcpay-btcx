@@ -19,12 +19,15 @@ public static class BtcxAmountCalculator
             throw new ArgumentOutOfRangeException(nameof(rate), "BTCX/CNY rate must be positive.");
         if (divisibility is < 0 or > 28)
             throw new ArgumentOutOfRangeException(nameof(divisibility));
+        if (divisibility != BtcxAmount.Decimals)
+            throw new ArgumentOutOfRangeException(nameof(divisibility), "BTCX uses the fixed precision defined by the PoCX consensus source.");
 
         try
         {
             var amount = fiatAmount / rate;
             // Match the v2.4.4 payment prompt's round-up behavior to avoid under-collecting.
-            return Extensions.RoundUp(amount, divisibility);
+            var rounded = Extensions.RoundUp(amount, divisibility);
+            return BtcxAmount.FromDecimal(rounded).ToDecimal();
         }
         catch (OverflowException ex)
         {

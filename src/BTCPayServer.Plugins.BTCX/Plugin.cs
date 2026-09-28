@@ -16,7 +16,7 @@ public sealed class Plugin : BaseBTCPayServerPlugin
 {
     public const string Area = "BTCX";
     public const string CryptoCode = "BTCX";
-    public const int Divisibility = 8;
+    public const int Divisibility = BtcxAmount.Decimals;
 
     public override string Identifier => "BTCPayServer.Plugins.BTCX";
     public override string Name => "BTCX";
