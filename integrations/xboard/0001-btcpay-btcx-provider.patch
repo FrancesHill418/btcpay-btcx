@@ -1,89 +1,56 @@
-From 5e3c7f8124ac0a79a0fff9b7d84069959f4c3e46 Mon Sep 17 00:00:00 2001
-From: Codex <codex@localhost>
-Date: Mon, 28 Sep 2026 14:34:14 +0800
-Subject: [PATCH 1/3] feat: integrate BTCX with XBoard
-
----
- plugins-core/Btcpay/Plugin.php                | 451 +++++++++++++++---
- ...0_create_btcpay_invoice_binding_tables.php |  47 ++
- tests/Unit/Plugins/BtcpayPluginTest.php       | 236 +++++++++
- 3 files changed, 657 insertions(+), 77 deletions(-)
- create mode 100644 plugins-core/Btcpay/database/migrations/2026_09_28_000000_create_btcpay_invoice_binding_tables.php
- create mode 100644 tests/Unit/Plugins/BtcpayPluginTest.php
-
 diff --git a/plugins-core/Btcpay/Plugin.php b/plugins-core/Btcpay/Plugin.php
-index a1ec49e..8b2055d 100644
+index a1ec49e..8913826 100644
 --- a/plugins-core/Btcpay/Plugin.php
 +++ b/plugins-core/Btcpay/Plugin.php
-@@ -2,18 +2,25 @@
- 
- namespace Plugin\Btcpay;
- 
+@@ -5 +4,0 @@ namespace Plugin\Btcpay;
 -use App\Services\Plugin\AbstractPlugin;
- use App\Contracts\PaymentInterface;
- use App\Exceptions\ApiException;
+@@ -7,0 +7,4 @@ use App\Exceptions\ApiException;
 +use App\Models\Order;
 +use App\Services\Plugin\AbstractPlugin;
 +use Illuminate\Support\Facades\DB;
 +use Illuminate\Support\Facades\Http;
- 
+@@ -8,0 +12 @@ use App\Exceptions\ApiException;
 +/** XBoard's Greenfield provider. Keep chain/wallet logic in the BTCPay plugin. */
- class Plugin extends AbstractPlugin implements PaymentInterface
- {
+@@ -10,0 +15,3 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 +    private const BTCX_PAYMENT_METHOD = 'BTCX-CHAIN';
 +    private const CURRENCY = 'CNY';
 +
-     public function boot(): void
-     {
+@@ -13 +20 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        $this->filter('available_payment_methods', function($methods) {
 +        $this->filter('available_payment_methods', function ($methods) {
-             if ($this->getConfig('enabled', true)) {
-                 $methods['BTCPay'] = [
+@@ -16 +23 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -                    'name' => $this->getConfig('display_name', 'BTCPay'),
 +                    'name' => $this->getConfig('display_name', 'BTCPay BTCX'),
-                     'icon' => $this->getConfig('icon', '₿'),
-                     'plugin_code' => $this->getPluginCode(),
-                     'type' => 'plugin'
-@@ -27,124 +34,414 @@ class Plugin extends AbstractPlugin implements PaymentInterface
-     {
-         return [
-             'btcpay_url' => [
+@@ -30 +37 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -                'label' => 'API接口所在网址',
 +                'label' => 'BTCPay Greenfield URL',
-                 'type' => 'string',
-                 'required' => true,
+@@ -33 +40 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -                'description' => '包含最后的斜杠，例如：https://your-btcpay.com/'
 +                'description' => 'HTTPS base URL, for example https://btcpay.example/'
-             ],
-             'btcpay_storeId' => [
+@@ -36 +43 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -                'label' => 'Store ID',
 +                'label' => 'BTCPay Store ID',
-                 'type' => 'string',
+@@ -38,2 +45 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -                'required' => true,
 -                'description' => 'BTCPay商店标识符'
 +                'required' => true
-             ],
-             'btcpay_api_key' => [
+@@ -41,2 +47,2 @@ class Plugin extends AbstractPlugin implements PaymentInterface
+-            'btcpay_api_key' => [
 -                'label' => 'API KEY',
-+                'label' => 'Greenfield API token',
-                 'type' => 'string',
-                 'required' => true,
++            'btcpay_api_key_file' => [
++                'label' => 'Greenfield API token secret-file path',
+@@ -45 +51 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -                'description' => '个人设置中的API KEY(非商店设置中的)'
-+                'description' => 'Development token needs invoice create/view and webhook management permissions.'
-             ],
-             'btcpay_webhook_key' => [
++                'description' => 'Absolute path to a read-only Docker secret file; the token value is not stored in XBoard configuration.'
+@@ -47,2 +53,2 @@ class Plugin extends AbstractPlugin implements PaymentInterface
+-            'btcpay_webhook_key' => [
 -                'label' => 'WEBHOOK KEY',
-+                'label' => 'Webhook HMAC secret',
-                 'type' => 'string',
-                 'required' => true,
++            'btcpay_webhook_key_file' => [
++                'label' => 'Webhook HMAC secret-file path',
+@@ -51 +57 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -                'description' => 'Webhook通知密钥'
-+                'description' => 'Used to register an InvoiceSettled webhook for the XBoard notify URL.'
-             ],
-         ];
-     }
- 
-     public function pay($order): array
-     {
++                'description' => 'Absolute path to a separate read-only Docker secret file.'
+@@ -58,8 +64,4 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        $params = [
 -            'jsonResponse' => true,
 -            'amount' => sprintf('%.2f', $order['total_amount'] / 100),
@@ -96,14 +63,14 @@ index a1ec49e..8b2055d 100644
 +        $tradeNo = $this->identifier($order['trade_no'] ?? null);
 +        $amountCents = $this->orderAmountCents($order['total_amount'] ?? null);
 +        $notifyUrl = $this->validAbsoluteUrl($order['notify_url'] ?? null, 'XBoard notify URL');
- 
+@@ -67,3 +69,3 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        $params_string = @json_encode($params);
 -        $ret_raw = $this->curlPost($this->getConfig('btcpay_url') . 'api/v1/stores/' . $this->getConfig('btcpay_storeId') . '/invoices', $params_string);
 -        $ret = @json_decode($ret_raw, true);
 +        // The URL is stable for this configured XBoard payment method. Create or
 +        // update one narrowly scoped Greenfield webhook, never one webhook/order.
 +        $this->ensureWebhook($config, $notifyUrl);
- 
+@@ -71,2 +73,15 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        if (empty($ret['checkoutLink'])) {
 -            throw new ApiException("error!");
 +        $existingBinding = DB::table('btcpay_invoice_bindings')->where('trade_no', $tradeNo)->first();
@@ -121,7 +88,7 @@ index a1ec49e..8b2055d 100644
 +                throw new ApiException('Existing BTCPay invoice binding failed validation.');
 +            }
 +            return ['type' => 1, 'data' => $existingBinding->checkout_link];
-         }
+@@ -74,4 +89,12 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        
 -        return [
 -            'type' => 1,
@@ -138,7 +105,7 @@ index a1ec49e..8b2055d 100644
 +                'speedPolicy' => 'LowSpeed',
 +                'paymentTolerance' => 0,
 +            ],
-         ];
+@@ -78,0 +102,31 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 +        $created = $this->api('POST', $config, '/api/v1/stores/' . rawurlencode($config['store_id']) . '/invoices', $request);
 +        $invoiceId = $this->identifier($created['id'] ?? null);
 +        $checkoutLink = $this->validCheckoutLink($created['checkoutLink'] ?? null, $config['base_url']);
@@ -170,10 +137,7 @@ index a1ec49e..8b2055d 100644
 +        }
 +
 +        return ['type' => 1, 'data' => $checkoutLink];
-     }
- 
-     public function notify($params): array|bool
-     {
+@@ -83,5 +137,10 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        $payload = trim(request()->getContent());
 -        $headers = getallheaders();
 -        $headerName = 'Btcpay-Sig';
@@ -181,7 +145,7 @@ index a1ec49e..8b2055d 100644
 -        $json_param = json_decode($payload, true);
 +        $rawBody = request()->getContent();
 +        $signature = (string) request()->header('BTCPay-Sig', '');
-+        $secret = (string) $this->getConfig('btcpay_webhook_key', '');
++        $secret = $this->readSecretFile($this->getConfig('btcpay_webhook_key_file'), 'webhook HMAC secret');
 +        if ($rawBody === '' || $secret === '' || !preg_match('/^sha256=[a-f0-9]{64}$/D', $signature)) {
 +            return false;
 +        }
@@ -189,7 +153,7 @@ index a1ec49e..8b2055d 100644
 +        if (!hash_equals($expectedSignature, $signature)) {
 +            return false;
 +        }
- 
+@@ -89 +148,24 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        $computedSignature = "sha256=" . \hash_hmac('sha256', $payload, $this->getConfig('btcpay_webhook_key'));
 +        try {
 +            $event = json_decode($rawBody, true, 512, JSON_THROW_ON_ERROR);
@@ -200,9 +164,7 @@ index a1ec49e..8b2055d 100644
 +            ($event['manuallyMarked'] ?? null) !== false || ($event['overPaid'] ?? null) !== false) {
 +            return false;
 +        }
- 
--        if (!$this->hashEqual($signraturHeader, $computedSignature)) {
--            throw new ApiException('HMAC signature does not match', 400);
++
 +        $config = $this->validatedConfig();
 +        $invoiceId = $this->safeIdentifier($event['invoiceId'] ?? null);
 +        if ($invoiceId === null) {
@@ -216,14 +178,10 @@ index a1ec49e..8b2055d 100644
 +            $binding->currency !== self::CURRENCY || $binding->payment_method_id !== self::BTCX_PAYMENT_METHOD ||
 +            $binding->speed_policy !== 'LowSpeed') {
 +            return false;
-         }
- 
--        $context = stream_context_create(array(
--            'http' => array(
--                'method' => 'GET',
--                'header' => "Authorization:" . "token " . $this->getConfig('btcpay_api_key') . "\r\n"
--            )
--        ));
++        }
+@@ -91,2 +173,7 @@ class Plugin extends AbstractPlugin implements PaymentInterface
+-        if (!$this->hashEqual($signraturHeader, $computedSignature)) {
+-            throw new ApiException('HMAC signature does not match', 400);
 +        $invoice = $this->getInvoice($config, $invoiceId);
 +        if (!$this->invoiceMatchesBinding((array) $invoice, (array) $binding, true)) {
 +            return false;
@@ -231,10 +189,13 @@ index a1ec49e..8b2055d 100644
 +        $order = Order::where('trade_no', $binding->trade_no)->first();
 +        if (!$order || (int) $order->total_amount !== (int) $binding->expected_amount_cents) {
 +            return false;
-+        }
- 
--        $invoiceDetail = file_get_contents($this->getConfig('btcpay_url') . 'api/v1/stores/' . $this->getConfig('btcpay_storeId') . '/invoices/' . $json_param['invoiceId'], false, $context);
--        $invoiceDetail = json_decode($invoiceDetail, true);
+@@ -95,6 +182,19 @@ class Plugin extends AbstractPlugin implements PaymentInterface
+-        $context = stream_context_create(array(
+-            'http' => array(
+-                'method' => 'GET',
+-                'header' => "Authorization:" . "token " . $this->getConfig('btcpay_api_key') . "\r\n"
+-            )
+-        ));
 +        $deliveryId = $this->safeIdentifier($event['deliveryId'] ?? null);
 +        if ($deliveryId === null) {
 +            return false;
@@ -254,10 +215,12 @@ index a1ec49e..8b2055d 100644
 +            'event_type' => 'InvoiceSettled',
 +            'received_at' => now(),
 +        ]);
-+
+@@ -102,2 +202,2 @@ class Plugin extends AbstractPlugin implements PaymentInterface
+-        $invoiceDetail = file_get_contents($this->getConfig('btcpay_url') . 'api/v1/stores/' . $this->getConfig('btcpay_storeId') . '/invoices/' . $json_param['invoiceId'], false, $context);
+-        $invoiceDetail = json_decode($invoiceDetail, true);
 +        return ['trade_no' => $binding->trade_no, 'callback_no' => $invoiceId];
 +    }
- 
+@@ -105,3 +205,14 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        $out_trade_no = $invoiceDetail['metadata']["orderId"];
 -        $pay_trade_no = $json_param['invoiceId'];
 -        
@@ -273,12 +236,9 @@ index a1ec49e..8b2055d 100644
 +            throw new ApiException('Plain HTTP is allowed only for a loopback/private development host.');
 +        }
 +        $storeId = $this->identifier($this->getConfig('btcpay_storeId'));
-+        $apiKey = (string) $this->getConfig('btcpay_api_key', '');
-+        $webhookKey = (string) $this->getConfig('btcpay_webhook_key', '');
-+        if ($apiKey === '' || $webhookKey === '') {
-+            throw new ApiException('BTCPay API token and webhook secret are required.');
-+        }
-         return [
++        $apiKey = $this->readSecretFile($this->getConfig('btcpay_api_key_file'), 'Greenfield API token');
++        $webhookKey = $this->readSecretFile($this->getConfig('btcpay_webhook_key_file'), 'webhook HMAC secret');
+@@ -109,2 +220,5 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -            'trade_no' => $out_trade_no,
 -            'callback_no' => $pay_trade_no
 +            'base_url' => rtrim($baseUrl, '/') . '/',
@@ -286,12 +246,10 @@ index a1ec49e..8b2055d 100644
 +            'api_key' => $apiKey,
 +            'webhook_key' => $webhookKey,
 +            'payment_uuid' => $this->identifier($this->getConfig('uuid')),
-         ];
-     }
- 
+@@ -114 +228 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -    private function curlPost($url, $params = false)
 +    private function ensureWebhook(array $config, string $notifyUrl): void
-     {
+@@ -116,14 +230,56 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        $ch = curl_init();
 -        curl_setopt($ch, CURLOPT_URL, $url);
 -        curl_setopt($ch, CURLOPT_HEADER, false);
@@ -362,13 +320,43 @@ index a1ec49e..8b2055d 100644
 +                'updated_at' => now(),
 +            ]);
 +        });
-     }
- 
+@@ -132 +288,2 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -    private function hashEqual($str1, $str2)
-+    private function getInvoice(array $config, string $invoiceId): array
-     {
++    /** Read a mounted secret without ever logging its value or path. */
++    private function readSecretFile(mixed $path, string $label): string
+@@ -134,2 +291,15 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -        if (function_exists('hash_equals')) {
 -            return \hash_equals($str1, $str2);
++        if (!is_string($path) || $path === '' || $path[0] !== '/') {
++            throw new ApiException('Configured ' . $label . ' secret file is unavailable.');
++        }
++        $resolvedPath = realpath($path);
++        $secretRoot = realpath('/run/secrets');
++        $mountedSecret = $resolvedPath !== false && $secretRoot !== false &&
++            str_starts_with($resolvedPath, $secretRoot . DIRECTORY_SEPARATOR);
++        $testSecret = $resolvedPath !== false && app()->environment('testing') &&
++            str_starts_with($resolvedPath, realpath(sys_get_temp_dir()) . DIRECTORY_SEPARATOR);
++        if ((!$mountedSecret && !$testSecret) || !is_file($resolvedPath) || !is_readable($resolvedPath)) {
++            throw new ApiException('Configured ' . $label . ' secret file is unavailable.');
++        }
++        $value = @file_get_contents($resolvedPath);
++        if (!is_string($value)) {
++            throw new ApiException('Configured ' . $label . ' secret file is unavailable.');
+@@ -136,0 +307,6 @@ class Plugin extends AbstractPlugin implements PaymentInterface
++        $value = rtrim($value, "\r\n");
++        if ($value === '') {
++            throw new ApiException('Configured ' . $label . ' secret file is empty.');
++        }
++        return $value;
++    }
+@@ -138,5 +314,26 @@ class Plugin extends AbstractPlugin implements PaymentInterface
+-        if (strlen($str1) != strlen($str2)) {
+-            return false;
+-        } else {
+-            $res = $str1 ^ $str2;
+-            $ret = 0;
++    private function getInvoice(array $config, string $invoiceId): array
++    {
 +        return $this->api('GET', $config,
 +            '/api/v1/stores/' . rawurlencode($config['store_id']) . '/invoices/' . rawurlencode($invoiceId) . '?includePaymentMethods=true');
 +    }
@@ -386,15 +374,16 @@ index a1ec49e..8b2055d 100644
 +        };
 +        if (!$response->successful()) {
 +            throw new ApiException('BTCPay Greenfield request failed. Check the development endpoint and API token permissions.');
-         }
++        }
 +        $decoded = $response->json();
 +        if (!is_array($decoded)) {
 +            throw new ApiException('BTCPay Greenfield returned an invalid response.');
 +        }
 +        return $decoded;
 +    }
- 
--        if (strlen($str1) != strlen($str2)) {
+@@ -144,2 +341,32 @@ class Plugin extends AbstractPlugin implements PaymentInterface
+-            for ($i = strlen($res) - 1; $i >= 0; $i--) {
+-                $ret |= ord($res[$i]);
 +    private function invoiceMatchesBinding(array $invoice, array $binding, bool $requireSettled): bool
 +    {
 +        if (($invoice['id'] ?? null) !== $binding['invoice_id'] ||
@@ -402,13 +391,7 @@ index a1ec49e..8b2055d 100644
 +            ($invoice['currency'] ?? null) !== self::CURRENCY ||
 +            $this->amountCents($invoice['amount'] ?? null) !== (int) $binding['expected_amount_cents'] ||
 +            ($invoice['metadata']['orderId'] ?? null) !== $binding['trade_no']) {
-             return false;
--        } else {
--            $res = $str1 ^ $str2;
--            $ret = 0;
--
--            for ($i = strlen($res) - 1; $i >= 0; $i--) {
--                $ret |= ord($res[$i]);
++            return false;
 +        }
 +        $methods = $invoice['checkout']['paymentMethods'] ?? null;
 +        if (!is_array($methods) || $methods !== [self::BTCX_PAYMENT_METHOD] ||
@@ -433,9 +416,9 @@ index a1ec49e..8b2055d 100644
 +                if (($payment['status'] ?? null) === 'Settled') {
 +                    return true;
 +                }
-             }
+@@ -147 +373,0 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -            return !$ret;
-         }
+@@ -148,0 +375,94 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 +        return false;
 +    }
 +
@@ -530,7 +513,7 @@ index a1ec49e..8b2055d 100644
 +            ($long & 0xfff00000) === 0xac100000 ||
 +            ($long & 0xffff0000) === 0xc0a80000 ||
 +            ($long & 0xff000000) === 0x7f000000;
-     }
+@@ -150 +470 @@ class Plugin extends AbstractPlugin implements PaymentInterface
 -} 
 \ No newline at end of file
 +}
@@ -589,16 +572,17 @@ index 0000000..ddb845e
 +};
 diff --git a/tests/Unit/Plugins/BtcpayPluginTest.php b/tests/Unit/Plugins/BtcpayPluginTest.php
 new file mode 100644
-index 0000000..4dc4deb
+index 0000000..4ead714
 --- /dev/null
 +++ b/tests/Unit/Plugins/BtcpayPluginTest.php
-@@ -0,0 +1,236 @@
+@@ -0,0 +1,273 @@
 +<?php
 +
 +namespace Tests\Unit\Plugins;
 +
 +use App\Models\Order;
 +use Illuminate\Container\Container;
++use Illuminate\Foundation\Application;
 +use Illuminate\Database\Capsule\Manager as Capsule;
 +use Illuminate\Http\Client\Factory as HttpFactory;
 +use Illuminate\Http\Request;
@@ -615,11 +599,23 @@ index 0000000..4dc4deb
 +    private Plugin $plugin;
 +    private const SECRET = 'development-webhook-secret';
 +    private const RAW_SETTLED = '{"deliveryId":"delivery-1","webhookId":"hook-1","type":"InvoiceSettled","storeId":"store-1","invoiceId":"invoice-1","manuallyMarked":false,"overPaid":false}';
++    private string $secretDirectory;
++    private string $apiKeyPath;
++    private string $webhookSecretPath;
 +
 +    protected function setUp(): void
 +    {
 +        parent::setUp();
-+        $app = new Container();
++        $this->secretDirectory = sys_get_temp_dir() . '/btcpay-test-secrets-' . bin2hex(random_bytes(8));
++        mkdir($this->secretDirectory, 0700);
++        $this->apiKeyPath = $this->secretDirectory . '/greenfield-token';
++        $this->webhookSecretPath = $this->secretDirectory . '/webhook-hmac';
++        file_put_contents($this->apiKeyPath, "development-api-token\n", LOCK_EX);
++        file_put_contents($this->webhookSecretPath, self::SECRET . "\n", LOCK_EX);
++        chmod($this->apiKeyPath, 0600);
++        chmod($this->webhookSecretPath, 0600);
++        $app = new Application(dirname(__DIR__, 3));
++        $app->detectEnvironment(fn () => 'testing');
 +        Container::setInstance($app);
 +        Facade::setFacadeApplication($app);
 +
@@ -649,13 +645,16 @@ index 0000000..4dc4deb
 +            'uuid' => 'provider-uuid',
 +            'btcpay_url' => 'http://127.0.0.1:8080/',
 +            'btcpay_storeId' => 'store-1',
-+            'btcpay_api_key' => 'development-api-token',
-+            'btcpay_webhook_key' => self::SECRET,
++            'btcpay_api_key_file' => $this->apiKeyPath,
++            'btcpay_webhook_key_file' => $this->webhookSecretPath,
 +        ]);
 +    }
 +
 +    protected function tearDown(): void
 +    {
++        @unlink($this->apiKeyPath);
++        @unlink($this->webhookSecretPath);
++        @rmdir($this->secretDirectory);
 +        Facade::clearResolvedInstances();
 +        Facade::setFacadeApplication(null);
 +        Container::setInstance(null);
@@ -687,6 +686,26 @@ index 0000000..4dc4deb
 +            str_ends_with($request->url(), '/api/v1/stores/store-1/webhooks') &&
 +            $request['authorizedEvents']['specificEvents'] === ['InvoiceSettled'] &&
 +            $request['authorizedEvents']['everything'] === false);
++    }
++
++    public function test_secret_file_path_outside_mounted_secret_root_is_rejected_without_echoing_path(): void
++    {
++        $this->plugin->setConfig([
++            'enabled' => true,
++            'uuid' => 'provider-uuid',
++            'btcpay_url' => 'http://127.0.0.1:8080/',
++            'btcpay_storeId' => 'store-1',
++            'btcpay_api_key_file' => '/etc/passwd',
++            'btcpay_webhook_key_file' => $this->webhookSecretPath,
++        ]);
++
++        try {
++            $this->plugin->pay($this->orderPayload());
++            self::fail('An arbitrary readable application file must not be accepted as a secret.');
++        } catch (\App\Exceptions\ApiException $exception) {
++            self::assertSame('Configured Greenfield API token secret file is unavailable.', $exception->getMessage());
++            self::assertStringNotContainsString('/etc/passwd', $exception->getMessage());
++        }
 +    }
 +
 +    public function test_repeated_order_request_reuses_its_bound_invoice(): void
@@ -768,6 +787,7 @@ index 0000000..4dc4deb
 +        $cases = [
 +            $this->invoice(status: 'Settled', paidAmount: 12.33, settledPayment: true),
 +            $this->invoice(status: 'Settled', paidAmount: 12.35, settledPayment: true),
++            $this->invoice(status: 'Expired', paidAmount: 12.34, settledPayment: true),
 +            $this->invoice(status: 'Settled', paidAmount: 12.34, additionalStatus: 'PaidLate', settledPayment: true),
 +            $this->invoice(status: 'Settled', paidAmount: 12.34, currency: 'USD', settledPayment: true),
 +            $this->invoice(status: 'Settled', paidAmount: 12.34, orderId: 'order-other', settledPayment: true),
@@ -829,65 +849,3 @@ index 0000000..4dc4deb
 +        return 'sha256=' . hash_hmac('sha256', $body, self::SECRET);
 +    }
 +}
--- 
-2.47.3
-
-
-From 025a9e9e5a547a8b5ef16f91652bc5f9b31bec0e Mon Sep 17 00:00:00 2001
-From: Development Test <dev-test@localhost>
-Date: Mon, 28 Sep 2026 15:57:13 +0800
-Subject: [PATCH 2/3] test: reject expired BTCX invoices before fulfillment
-
----
- tests/Unit/Plugins/BtcpayPluginTest.php | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/tests/Unit/Plugins/BtcpayPluginTest.php b/tests/Unit/Plugins/BtcpayPluginTest.php
-index 4dc4deb..3fbfb5f 100644
---- a/tests/Unit/Plugins/BtcpayPluginTest.php
-+++ b/tests/Unit/Plugins/BtcpayPluginTest.php
-@@ -173,6 +173,7 @@ final class BtcpayPluginTest extends TestCase
-         $cases = [
-             $this->invoice(status: 'Settled', paidAmount: 12.33, settledPayment: true),
-             $this->invoice(status: 'Settled', paidAmount: 12.35, settledPayment: true),
-+            $this->invoice(status: 'Expired', paidAmount: 12.34, settledPayment: true),
-             $this->invoice(status: 'Settled', paidAmount: 12.34, additionalStatus: 'PaidLate', settledPayment: true),
-             $this->invoice(status: 'Settled', paidAmount: 12.34, currency: 'USD', settledPayment: true),
-             $this->invoice(status: 'Settled', paidAmount: 12.34, orderId: 'order-other', settledPayment: true),
--- 
-2.47.3
-
-
-From 1016cdded1fb2876e18d65b8eeb121d4f563a3ae Mon Sep 17 00:00:00 2001
-From: Development Test <dev-test@localhost>
-Date: Mon, 28 Sep 2026 16:10:15 +0800
-Subject: [PATCH 3/3] test: use Laravel application in provider fixture
-
----
- tests/Unit/Plugins/BtcpayPluginTest.php | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/tests/Unit/Plugins/BtcpayPluginTest.php b/tests/Unit/Plugins/BtcpayPluginTest.php
-index 3fbfb5f..b8d1a21 100644
---- a/tests/Unit/Plugins/BtcpayPluginTest.php
-+++ b/tests/Unit/Plugins/BtcpayPluginTest.php
-@@ -4,6 +4,7 @@ namespace Tests\Unit\Plugins;
- 
- use App\Models\Order;
- use Illuminate\Container\Container;
-+use Illuminate\Foundation\Application;
- use Illuminate\Database\Capsule\Manager as Capsule;
- use Illuminate\Http\Client\Factory as HttpFactory;
- use Illuminate\Http\Request;
-@@ -24,7 +25,7 @@ final class BtcpayPluginTest extends TestCase
-     protected function setUp(): void
-     {
-         parent::setUp();
--        $app = new Container();
-+        $app = new Application(dirname(__DIR__, 3));
-         Container::setInstance($app);
-         Facade::setFacadeApplication($app);
- 
--- 
-2.47.3
-

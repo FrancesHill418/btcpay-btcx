@@ -69,8 +69,6 @@ public sealed class BtcxPaymentListener(
     {
         _ = options.Validate();
         var wallet = walletOptions.CurrentValue.Validate();
-        if (wallet.Network == BtcxNetworkId.Mainnet)
-            throw new InvalidOperationException("Development BTCX payment listener refuses mainnet.");
 
         var rpcClient = rpcClientFactory();
         await rpcClient.VerifyNetworkAsync(wallet.Network, cancellationToken).ConfigureAwait(false);

@@ -61,7 +61,7 @@ public sealed class BtcxReceiveAddressProviderTests
     }
 
     [Fact]
-    public async Task Development_address_provider_refuses_mainnet_configuration()
+    public async Task Mainnet_is_disabled_without_explicit_configuration_gate()
     {
         var wallet = new FakeWalletHandler("main");
         var rpc = CreateProvider(wallet, network: "main");
@@ -70,7 +70,23 @@ public sealed class BtcxReceiveAddressProviderTests
         Assert.Empty(wallet.Methods);
     }
 
-    private static BtcxReceiveAddressProvider CreateProvider(FakeWalletHandler handler, string network = "regtest")
+    [Fact]
+    public async Task Mainnet_address_allocation_requires_and_honors_explicit_configuration_gate()
+    {
+        var mainnetAddress = BtcxAddress.FromScriptPubKey(
+            new NBitcoin.Script([0x00, 0x14, .. Enumerable.Repeat((byte)0x33, 20)]), BtcxNetworkId.Mainnet);
+        var wallet = new FakeWalletHandler("main", addressOverride: mainnetAddress);
+        var provider = CreateProvider(wallet, network: "main", allowMainnet: true);
+
+        var receive = await provider.GetOrAllocateAsync("invoice-mainnet-gated", TestContext.Current.CancellationToken);
+
+        Assert.Equal("main", receive.Network);
+        Assert.Equal(mainnetAddress, receive.Address);
+        Assert.Contains("getblockchaininfo", wallet.Methods);
+        Assert.Contains("getnewaddress", wallet.Methods);
+    }
+
+    private static BtcxReceiveAddressProvider CreateProvider(FakeWalletHandler handler, string network = "regtest", bool allowMainnet = false)
     {
         var rpc = new BtcxRpcClient(new HttpClient(handler), Options.Create(new BtcxRpcOptions
         {
@@ -79,7 +95,7 @@ public sealed class BtcxReceiveAddressProviderTests
         }));
         return new BtcxReceiveAddressProvider(() => rpc, Options.Create(new BtcxWalletOptions
         {
-            WalletName = "receive-only", Network = network
+            WalletName = "receive-only", Network = network, AllowMainnet = allowMainnet
         }));
     }
 
@@ -107,7 +123,12 @@ public sealed class BtcxReceiveAddressProviderTests
             string? result = method switch
             {
                 "getblockchaininfo" => "{\"chain\":\"" + chain + "\",\"blocks\":0,\"headers\":0,\"bestblockhash\":\"" + BtcxNetworkParameters.For(BtcxNetworkId.Regtest).GenesisHash + "\"}",
-                "getblockhash" => "\"" + BtcxNetworkParameters.For(chain == "regtest" ? BtcxNetworkId.Regtest : BtcxNetworkId.Testnet).GenesisHash + "\"",
+                "getblockhash" => "\"" + BtcxNetworkParameters.For(chain switch
+                {
+                    "main" => BtcxNetworkId.Mainnet,
+                    "test" => BtcxNetworkId.Testnet,
+                    _ => BtcxNetworkId.Regtest
+                }).GenesisHash + "\"",
                 "getaddressesbylabel" => ReadLabel(args[0].GetString()!),
                 "getnewaddress" => CreateAddress(args[0].GetString()!),
                 _ => throw new InvalidOperationException("Unexpected RPC method " + method)

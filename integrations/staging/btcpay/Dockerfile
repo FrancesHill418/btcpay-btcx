@@ -1,5 +1,5 @@
-ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0.401
-ARG BTCPAY_BASE_IMAGE=btcpayserver/btcpayserver:2.4.4
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0.401@sha256:35d40304542c8689331f8cab17c65926cdf48fe711e289321d71924b230a7d29
+ARG BTCPAY_BASE_IMAGE=btcpayserver/btcpayserver:2.4.4@sha256:c264aa08cd32a469bd30d41978b73dc8bb2de1503ce67bdb0ab8fd5d934fb614
 FROM ${DOTNET_SDK_IMAGE} AS plugin-build
 WORKDIR /src
 COPY . .

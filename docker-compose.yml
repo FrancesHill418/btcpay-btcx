@@ -2,7 +2,7 @@ name: ${COMPOSE_PROJECT_NAME:-btcx-staging}
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.15-alpine3.24@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
     environment:
       POSTGRES_DB: btcpayserver
@@ -23,15 +23,7 @@ services:
     stop_grace_period: 1m
 
   bitcoin-pocx:
-    image: bitcoin-pocx:development-regtest
-    pull_policy: build
-    build:
-      context: .
-      dockerfile: integrations/staging/bitcoin-pocx/Dockerfile
-      args:
-        BTCX_NODE_COMMIT: 005bf0098e217b76a2627bfae458dff4f5718dd5
-        BTCX_CORE_COMMIT: b88b852644f629cd5f25b3424d11b462462c24b3
-        BUILD_JOBS: ${BUILD_JOBS:-2}
+    image: bitcoin-pocx:development-regtest@sha256:e84901f03d3d70e89f798235255523201c1be5a9e5756259e54984d7de0e9d99
     restart: unless-stopped
     environment:
       BTCX_BACKEND_SUBNET: ${BTCX_BACKEND_SUBNET:-172.30.50.0/24}
@@ -51,7 +43,7 @@ services:
     stop_grace_period: 2m
 
   wallet-init:
-    image: bitcoin-pocx:development-regtest
+    image: bitcoin-pocx:development-regtest@sha256:e84901f03d3d70e89f798235255523201c1be5a9e5756259e54984d7de0e9d99
     entrypoint: ["/usr/local/bin/wallet-init.sh"]
     restart: "no"
     volumes:
@@ -63,14 +55,7 @@ services:
         condition: service_healthy
 
   electrs-btcx:
-    image: electrs-btcx:development-regtest
-    pull_policy: build
-    build:
-      context: .
-      dockerfile: integrations/staging/electrs/Dockerfile
-      args:
-        BINDEX_COMMIT: eda7c70660baa06affef464c7ea1e131c39304f1
-        ELECTRS_COMMIT: 2f78c63e20215e20944767f0901209c4d740fe5b
+    image: electrs-btcx:development-regtest@sha256:31959be4c1ccc92aa65487b7800fe0786a4990b1ab33189743a2bad82e3969f2
     restart: unless-stopped
     command:
       - --network=regtest
@@ -97,14 +82,7 @@ services:
     stop_grace_period: 1m
 
   btcpay:
-    image: btcpay-btcx:staging
-    pull_policy: build
-    build:
-      context: .
-      dockerfile: integrations/staging/btcpay/Dockerfile
-      args:
-        BTCPAY_BASE_IMAGE: btcpayserver/btcpayserver:2.4.4
-        DOTNET_SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:10.0.401
+    image: btcpay-btcx:staging@sha256:34381e062bcaf1f733230f7d46dca28b8948acc6a0ce91dfdc4ee5d4e297ec0e
     restart: unless-stopped
     entrypoint: ["/usr/local/bin/btcpay-btcx-entrypoint.sh"]
     environment:

@@ -10,6 +10,7 @@ public sealed class BtcxWalletOptions
     public const string SectionName = "BTCX:Wallet";
     public string WalletName { get; set; } = "btcx-receive";
     public string Network { get; set; } = "regtest";
+    public bool AllowMainnet { get; set; }
 
     public (string WalletName, BtcxNetworkId Network) Validate()
     {
@@ -19,8 +20,9 @@ public sealed class BtcxWalletOptions
             string.Equals(Network, value.ChainName, StringComparison.OrdinalIgnoreCase));
         if (networkParameters is null)
             throw new OptionsValidationException(nameof(BtcxWalletOptions), typeof(BtcxWalletOptions), ["Network must be main, test, or regtest."]);
-        if (networkParameters.Id == BtcxNetworkId.Mainnet)
-            throw new OptionsValidationException(nameof(BtcxWalletOptions), typeof(BtcxWalletOptions), ["BTCX wallet allocation is restricted to testnet and regtest in this development build."]);
+        if (networkParameters.Id == BtcxNetworkId.Mainnet && !AllowMainnet)
+            throw new OptionsValidationException(nameof(BtcxWalletOptions), typeof(BtcxWalletOptions),
+                ["BTCX mainnet is disabled. Explicitly set BTCX:Wallet:AllowMainnet=true only in an approved mainnet deployment."]);
         return (WalletName, networkParameters.Id);
     }
 }

@@ -1,4 +1,4 @@
-FROM debian:trixie AS build
+FROM debian:trixie@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c AS build
 ARG BINDEX_COMMIT=eda7c70660baa06affef464c7ea1e131c39304f1
 ARG ELECTRS_COMMIT=2f78c63e20215e20944767f0901209c4d740fe5b
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,7 +17,7 @@ ENV ROCKSDB_INCLUDE_DIR=/usr/include
 ENV ROCKSDB_LIB_DIR=/usr/lib/x86_64-linux-gnu
 RUN cd /build/electrs-btcx && cargo build --release --locked
 
-FROM debian:trixie-slim
+FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 RUN apt-get update && apt-get install -y --no-install-recommends \
     librocksdb-dev ca-certificates python3 \
     && rm -rf /var/lib/apt/lists/* \

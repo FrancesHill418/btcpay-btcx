@@ -2,13 +2,15 @@
 
 This runbook describes an isolated, repeatable **regtest staging** deployment from the `development-complete` source tag. It is not a production/mainnet procedure. Never attach production credentials, customer data, a mainnet wallet, or mainnet chain data to this environment.
 
+The root Compose file is now a runtime lock manifest: each service image is pinned to a digest, and the custom BTCX images are local-only. This checkout does not publish those images or include a Compose build recipe. Do not use the file to replace/recreate the already-running acceptance stack or on a different host until image provenance and the running PoCX image drift in [image-lock.md](image-lock.md) are resolved. The current services were left running unchanged during production hardening.
+
 ## Pinned source set
 
 | Component | Version / revision |
 |---|---|
 | Release source baseline | Git tag `development-complete` (baseline commit `57995b3ecc154069c94d06c967cbac2c54ab3324`) |
 | BTCPay Server | `v2.4.4`, commit `2d5a0d8077bb33af080e949031da33d84b80638d` |
-| .NET SDK | `10.0.401`, `latestPatch` roll-forward |
+| .NET SDK | `10.0.401`, roll-forward `disable` |
 | Bitcoin-PoCX | commit `005bf0098e217b76a2627bfae458dff4f5718dd5`; bundled Bitcoin source is v30.2.1, commit `b88b852644f629cd5f25b3424d11b462462c24b3` |
 | bindex-btcx | commit `eda7c70660baa06affef464c7ea1e131c39304f1` |
 | electrs-btcx | tag `v0.11.1-btcx.1`, commit `2f78c63e20215e20944767f0901209c4d740fe5b` |
@@ -71,7 +73,7 @@ BTCX__Electrum__PollIntervalSeconds=15
 
 Alternatively configure `BTCX__RPC__CookieFilePath` and mount only the required cookie file read-only at that path, with ownership and renewal handled safely across node restarts. Choose either cookie authentication or username/password, never both. Do not mount the entire wallet/node datadir into BTCPay. The plugin rejects literal public RPC/Electrum IPs and validates resolved endpoint addresses; node-side bind/allow-list and network isolation remain required.
 
-The configured node must provide a dedicated loaded or creatable `btcx-receive` wallet. Create/initialize it only on regtest. The wallet allocation code in this development build explicitly rejects `Network=main`; this staging runbook must remain on `regtest`.
+The configured node must provide a dedicated loaded or creatable `btcx-receive` wallet. Create/initialize it only on regtest. The wallet options now expose `BTCX__Wallet__AllowMainnet=false` by default; this staging runbook must remain on `regtest` and must not enable mainnet.
 
 For this PoCX build, regtest defaults are RPC `18443`, P2P `18444`, and address HRP `rpocx`; confirm actual node configuration before connecting. Electrs commonly uses TCP `50001` internally; configure the actual service to match `BTCX__Electrum__Endpoint`.
 
@@ -85,7 +87,7 @@ On a separate development XBoard instance, check out the pinned source commit an
 
 ```sh
 git checkout 4f48e61a2cbc6db5338872b6bdb45ef954ec1256
-git am /path/to/btcpay-btcx/integrations/xboard/0001-btcpay-btcx-provider.patch
+git apply --unidiff-zero /path/to/btcpay-btcx/integrations/xboard/0001-btcpay-btcx-provider.patch
 ```
 
 The provider patch selects Greenfield payment method `BTCX-CHAIN`, creates a CNY invoice with `metadata.orderId`, and binds the order to the invoice. Configure the development BTCPay URL, Store ID, a least-privilege Greenfield token (invoice create/view and webhook view/create/update), and a separate random webhook HMAC secret in the XBoard secret store. Use HTTPS except for isolated loopback/private development endpoints where the provider explicitly allows HTTP. Register `InvoiceSettled`; confirm signature verification, invoice/order binding, amount/currency, idempotency, and a real HTTP 200 callback with disposable orders. Never paste token or HMAC secret into `.env.example`, command history, logs, or this repository.

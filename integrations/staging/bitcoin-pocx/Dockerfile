@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 AS build
+FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS build
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BTCX_NODE_COMMIT=005bf0098e217b76a2627bfae458dff4f5718dd5
 ARG BTCX_CORE_COMMIT=b88b852644f629cd5f25b3424d11b462462c24b3
@@ -26,7 +26,7 @@ RUN cmake -S /src/bitcoin-pocx/bitcoin -B /src/bitcoin-pocx/bitcoin/build \
     && test "${BUILD_JOBS}" -gt 0 \
     && cmake --build /src/bitcoin-pocx/bitcoin/build --target bitcoind bitcoin-cli -j"${BUILD_JOBS}"
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates gosu libboost-filesystem1.83.0 libboost-system1.83.0 \

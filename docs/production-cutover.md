@@ -6,10 +6,10 @@
 
 Do not schedule cutover until all items below have named owners and review evidence:
 
-1. Current mainnet guard is replaced only by an intentional, reviewed plugin release; the present build must not be configured around its explicit refusal.
+1. Review and approve the plugin's explicit `BTCX:Wallet:AllowMainnet` configuration gate. It defaults false and only a separately authorized mainnet deployment may set it true. The current mock-RPC opt-in test is not live-chain acceptance.
 2. Phoenix real-device acceptance is complete or an accountable release authority has explicitly dispositioned the remaining gate.
 3. PoCX node, bindex and electrs supported versions work without unapproved development patches; node/indexer compatibility and recovery have been proven.
-4. All production dependencies are immutably pinned, reproducibly built, scanned, attested and listed by source hash, OCI digest, package lock and output checksum. Current Dockerfiles use mutable tags and unpinned OS package installs.
+4. All production dependencies are immutably pinned, reproducibly built, scanned, attested and listed by source hash, OCI digest, package lock and output checksum. Base-image tags are digest-qualified now, but OS packages remain unpinned and custom staging images are local-only without verified build provenance.
 5. Dedicated production wallet custody, RPC boundaries, encrypted backup, restore drill, rate governance and deep-reorg compensation are approved.
 6. Separate production databases, service identities, Greenfield credentials, XBoard configuration, webhook HMAC secrets and TLS certificates are provisioned in the approved secret manager. None are shared with staging.
 7. Production HTTPS ingress, firewall, monitoring, alerting, retention, incident response, restore and rollback have passed rehearsals.
@@ -42,4 +42,4 @@ Rollback must use the approved application artifact/configuration rollback and c
 
 ## Current release decision
 
-This repository's staging E2E is **PASS** on regtest. Production dependency pinning, mainnet support, production key custody, XBoard secret injection, Phoenix device acceptance, supported node/indexer release, and production DR/security approvals are not complete. Therefore this candidate is **NOT READY FOR PRODUCTION**. The RC tag labels preparation material only and does not authorize cutover.
+This repository's staging E2E is **PASS** on regtest for the previous provider patch. The updated secret-file XBoard provider patch passed its isolated tests but staging E2E has not been rerun. Public base image references and local staging image IDs are digest-pinned; apt package snapshots, reproducible builds and published production artifacts are incomplete. Phoenix real-device acceptance, formal supported PoCX/indexer artifacts, wallet custody review, production secret mounts, production-equivalent DR, and security approvals remain open. Therefore this candidate is **NOT READY FOR PRODUCTION**. The RC tag labels preparation material only and does not authorize cutover.

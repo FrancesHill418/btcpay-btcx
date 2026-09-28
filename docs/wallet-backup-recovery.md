@@ -57,6 +57,12 @@ Restore only into an isolated, access-controlled recovery environment using the 
 
 The development regtest wallet restore recovered 9 labels and 5 transaction IDs. That result validates only the tested development RPC backup path; it does not certify production encryption, custody, outage recovery, scale or secret recovery.
 
+## Credential and wallet rotation
+
+Rotate RPC access separately from wallet keys. For cookie authentication, schedule the node's supported restart/credential regeneration, keep RPC restricted to the private interface, ensure the new cookie is delivered to the BTCPay container through its read-only secret mount, verify RPC access and log redaction, then revoke/delete the old credential copy through the secret manager. Do not copy a cookie into an environment value or image.
+
+For a receiving-wallet/key rotation, do not overwrite the current wallet backup. Pause new BTCX invoices, make and verify an encrypted backup of the old wallet, create a new dedicated wallet through the approved custody ceremony, verify its network/genesis and receiving address, then update BTCPay's wallet name using controlled secret/config delivery. Reconcile all old invoices until expiry/settlement; retain the old wallet loaded and protected for history/recovery until there are no invoice or accounting dependencies. Any later movement of funds from old to new wallet requires a separately approved transaction procedure and dual authorization. This release preparation does not initiate a rotation or transaction.
+
 ## Loss or compromise response
 
 If a wallet backup, signing device, RPC credential, database or webhook secret is lost or exposed, page the designated security incident owner. Restrict the affected identity/network path, preserve audit evidence, revoke/rotate credentials through the approved sequence, assess whether receive addresses or funds are at risk, and reconcile all outstanding invoices. Do not email backup files or place them in an incident ticket. If signing keys may be compromised, follow the separately approved customer/treasury recovery plan; this repository does not define a safe key migration for production.
