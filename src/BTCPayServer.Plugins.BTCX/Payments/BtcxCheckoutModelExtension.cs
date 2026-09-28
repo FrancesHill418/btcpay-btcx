@@ -1,5 +1,6 @@
 using BTCPayServer.Models.InvoicingModels;
 using BTCPayServer.Payments;
+using BTCPayServer.Payments.Bitcoin;
 using BTCPayServer.Services.Invoices;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json.Linq;
@@ -14,11 +15,16 @@ public sealed class BtcxCheckoutModelExtension : ICheckoutModelExtension
 
     public void ModifyCheckoutModel(CheckoutModelContext context)
     {
-        if (context.Prompt.Details is JObject details)
-            context.Model.AdditionalData["btcxQuote"] = details.DeepClone();
+        if (context.Prompt.Details is not JObject)
+            return;
+        var link = BtcxPaymentLinkExtension.CreatePaymentLink(context.Prompt);
+        if (link is null)
+            return;
 
-        // This explicit marker is available to plugin-owned checkout UI. No address/payment
-        // action is exposed by this skeleton.
-        context.Model.AdditionalData["btcxPaymentMode"] = "skeleton-not-payable";
+        // Reuse BTCPay v2.4.4's existing on-chain checkout component: it renders the
+        // address, copy action, wallet link and QR from these standard model fields.
+        context.Model.CheckoutBodyComponentName = BitcoinCheckoutModelExtension.CheckoutBodyComponentName;
+        context.Model.InvoiceBitcoinUrl = link;
+        context.Model.InvoiceBitcoinUrlQR = link;
     }
 }
