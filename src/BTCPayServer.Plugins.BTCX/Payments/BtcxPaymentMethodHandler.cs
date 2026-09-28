@@ -1,15 +1,19 @@
 using BTCPayServer.Data;
 using BTCPayServer.Payments;
 using BTCPayServer.Plugins.BTCX.Rates;
+using BTCPayServer.Plugins.BTCX.Wallet;
 using BTCPayServer.Services.Invoices;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Plugins.BTCX.Payments;
 
-public sealed class BtcxPaymentMethodHandler(ManualRateSettingsService settingsService) : IPaymentMethodHandler
+public sealed class BtcxPaymentMethodHandler(
+    ManualRateSettingsService settingsService,
+    IBtcxReceiveAddressProvider receiveAddressProvider) : IPaymentMethodHandler
 {
     private readonly ManualRateSettingsService _settingsService = settingsService;
+    private readonly IBtcxReceiveAddressProvider _receiveAddressProvider = receiveAddressProvider;
 
     public PaymentMethodId PaymentMethodId { get; } = PaymentTypes.CHAIN.GetPaymentMethodId(Plugin.CryptoCode);
     public JsonSerializer Serializer { get; } = BlobSerializer.CreateSerializer().Serializer;
@@ -44,6 +48,18 @@ public sealed class BtcxPaymentMethodHandler(ManualRateSettingsService settingsS
         }
 
         var promptAmount = context.Prompt.Calculate().Due;
+        BtcxAmount atomicAmount;
+        try
+        {
+            atomicAmount = BtcxAmount.FromDecimal(promptAmount);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new PaymentMethodUnavailableException($"BTCX invoice amount cannot be represented in atomic units: {ex.Message}");
+        }
+        var receive = await _receiveAddressProvider.GetOrAllocateAsync(context.InvoiceEntity.Id);
+        context.Prompt.Destination = receive.Address;
+        context.TrackedDestinations.Add(receive.TrackingToken);
         context.Prompt.Details = JObject.FromObject(new BtcxInvoiceSnapshot(
             FiatAmount: context.InvoiceEntity.Price,
             FiatCurrency: context.InvoiceEntity.Currency,
@@ -51,7 +67,11 @@ public sealed class BtcxPaymentMethodHandler(ManualRateSettingsService settingsS
             CryptoCurrency: Plugin.CryptoCode,
             ExchangeRate: appliedRate,
             RateSource: ManualRateSettingsService.Source,
-            RateTimestamp: fetchedSettings.UpdatedAt!.Value), Serializer);
+            RateTimestamp: fetchedSettings.UpdatedAt!.Value,
+            CryptoAmountAtomicUnits: atomicAmount.AtomicUnits,
+            Network: receive.Network,
+            ReceiveAddress: receive.Address,
+            ScriptPubKeyHex: Convert.ToHexString(receive.ScriptPubKey.ToBytes()).ToLowerInvariant()), Serializer);
     }
 
     public object ParsePaymentMethodConfig(JToken config) => config.ToObject<BtcxPaymentMethodConfig>(Serializer) ?? new BtcxPaymentMethodConfig();

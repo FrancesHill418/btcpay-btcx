@@ -81,6 +81,11 @@ public sealed record BtcxWalletTransaction
     [JsonExtensionData] public Dictionary<string, JsonElement>? Extensions { get; init; }
 }
 
+public sealed record BtcxWalletAddressInfo
+{
+    [JsonPropertyName("purpose")] public string Purpose { get; init; } = "";
+}
+
 public sealed record BtcxTransactionConfirmationInfo(
     string TxId,
     int Confirmations,

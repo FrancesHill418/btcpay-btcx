@@ -41,6 +41,19 @@ public sealed class BtcxRpcClientTests
     }
 
     [Fact]
+    public async Task Wallet_address_generation_is_not_retried_after_ambiguous_server_failure()
+    {
+        var handler = new FakeHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+        {
+            Content = new StringContent("wallet may already have generated an address")
+        }));
+        var client = CreateClient(handler, retries: 3, retryDelay: 0);
+        await Assert.ThrowsAsync<BtcxRpcProtocolException>(() => client.GetNewAddressAsync(
+            "receive-only", "btcx-invoice-test", cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
     public async Task Getblockchaininfo_reads_PoCX_chain_fields()
     {
         var handler = JsonHandler("{\"chain\":\"regtest\",\"blocks\":42,\"headers\":42,\"bestblockhash\":\"" + Hash + "\",\"base_target\":43980465111,\"generation_signature\":\"abcd\",\"initialblockdownload\":false,\"pruned\":false}");
@@ -49,6 +62,25 @@ public sealed class BtcxRpcClientTests
         Assert.Equal(42, info.Blocks);
         Assert.Equal(43980465111UL, info.BaseTarget);
         Assert.Equal("abcd", info.GenerationSignature);
+    }
+
+    [Fact]
+    public async Task Network_verification_checks_the_genesis_hash_not_only_the_chain_name()
+    {
+        var handler = new FakeHandler((request, _) => Task.FromResult(
+            handlerMethod(request) == "getblockchaininfo"
+                ? JsonResponse(request, "{\"chain\":\"regtest\",\"blocks\":0,\"headers\":0,\"bestblockhash\":\"" + Hash + "\"}")
+                : JsonResponse(request, "\"" + Hash + "\"")));
+        var client = CreateClient(handler);
+        var error = await Assert.ThrowsAsync<BtcxRpcException>(() => client.VerifyNetworkAsync(BtcxNetworkId.Regtest, TestContext.Current.CancellationToken));
+        Assert.Equal("getblockhash", error.Method);
+        Assert.Equal(2, handler.CallCount);
+
+        static string handlerMethod(HttpRequestMessage request)
+        {
+            using var document = JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+            return document.RootElement.GetProperty("method").GetString()!;
+        }
     }
 
     [Fact]

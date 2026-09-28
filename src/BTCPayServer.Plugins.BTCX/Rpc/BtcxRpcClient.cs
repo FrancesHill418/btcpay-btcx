@@ -33,6 +33,13 @@ public sealed class BtcxRpcClient : IBtcxRpcClient
     public Task<string> GetBestBlockHashAsync(CancellationToken cancellationToken = default) =>
         CallAsync<string>("getbestblockhash", [], null, cancellationToken);
 
+    public Task<string> GetBlockHashAsync(int height, CancellationToken cancellationToken = default)
+    {
+        if (height < 0)
+            throw new ArgumentOutOfRangeException(nameof(height));
+        return CallAsync<string>("getblockhash", [height], null, cancellationToken);
+    }
+
     public Task<int> GetBlockCountAsync(CancellationToken cancellationToken = default) =>
         CallAsync<int>("getblockcount", [], null, cancellationToken);
 
@@ -81,6 +88,26 @@ public sealed class BtcxRpcClient : IBtcxRpcClient
             "wallet/" + Uri.EscapeDataString(walletName), cancellationToken);
     }
 
+    public Task<string> GetNewAddressAsync(string walletName, string label, string addressType = "bech32", CancellationToken cancellationToken = default)
+    {
+        ValidateWalletRoute(walletName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        if (addressType is not "legacy" and not "p2sh-segwit" and not "bech32" and not "bech32m")
+            throw new ArgumentException("Unsupported BTCX wallet address type.", nameof(addressType));
+        // This mutates wallet state. The caller recovers an allocation by label;
+        // blindly retrying after a timeout could create an extra address.
+        return CallAsync<string>("getnewaddress", [label, addressType], "wallet/" + Uri.EscapeDataString(walletName), cancellationToken, retrySafe: false);
+    }
+
+    public Task<IReadOnlyDictionary<string, BtcxWalletAddressInfo>> GetAddressesByLabelAsync(
+        string walletName, string label, CancellationToken cancellationToken = default)
+    {
+        ValidateWalletRoute(walletName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        return CallAsync<IReadOnlyDictionary<string, BtcxWalletAddressInfo>>(
+            "getaddressesbylabel", [label], "wallet/" + Uri.EscapeDataString(walletName), cancellationToken);
+    }
+
     public async Task<BtcxTransactionConfirmationInfo> GetTransactionConfirmationsAsync(
         string txId, string? blockHash = null, CancellationToken cancellationToken = default)
     {
@@ -100,10 +127,14 @@ public sealed class BtcxRpcClient : IBtcxRpcClient
         var expected = BtcxNetworkParameters.For(expectedNetwork).ChainName;
         if (!string.Equals(info.Chain, expected, StringComparison.Ordinal))
             throw new BtcxRpcException($"Connected BTCX node reports chain '{info.Chain}', expected '{expected}'.", "getblockchaininfo");
+        var genesis = await GetBlockHashAsync(0, cancellationToken).ConfigureAwait(false);
+        var expectedGenesis = BtcxNetworkParameters.For(expectedNetwork).GenesisHash;
+        if (!string.Equals(genesis, expectedGenesis, StringComparison.OrdinalIgnoreCase))
+            throw new BtcxRpcException("Connected BTCX node has an unexpected genesis block.", "getblockhash");
         return info;
     }
 
-    private async Task<T> CallAsync<T>(string method, object?[] parameters, string? relativePath, CancellationToken cancellationToken)
+    private async Task<T> CallAsync<T>(string method, object?[] parameters, string? relativePath, CancellationToken cancellationToken, bool retrySafe = true)
     {
         var uri = relativePath is null ? _endpoint : new Uri(_endpoint, relativePath);
         for (var attempt = 0; ; attempt++)
@@ -136,7 +167,7 @@ public sealed class BtcxRpcClient : IBtcxRpcClient
                 }
                 catch (JsonException)
                 {
-                    if ((int)response.StatusCode >= 500 && attempt < _options.MaxRetries)
+                    if (retrySafe && (int)response.StatusCode >= 500 && attempt < _options.MaxRetries)
                     {
                         await DelayBeforeRetryAsync(attempt, cancellationToken).ConfigureAwait(false);
                         continue;
@@ -151,7 +182,7 @@ public sealed class BtcxRpcClient : IBtcxRpcClient
 
                 if (envelope.Error is { } rpcError)
                 {
-                    if (rpcError.Code == -28 && attempt < _options.MaxRetries)
+                    if (retrySafe && rpcError.Code == -28 && attempt < _options.MaxRetries)
                     {
                         await DelayBeforeRetryAsync(attempt, cancellationToken).ConfigureAwait(false);
                         continue;
@@ -162,7 +193,7 @@ public sealed class BtcxRpcClient : IBtcxRpcClient
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    if ((int)response.StatusCode >= 500 && attempt < _options.MaxRetries)
+                    if (retrySafe && (int)response.StatusCode >= 500 && attempt < _options.MaxRetries)
                     {
                         await DelayBeforeRetryAsync(attempt, cancellationToken).ConfigureAwait(false);
                         continue;
@@ -201,13 +232,13 @@ public sealed class BtcxRpcClient : IBtcxRpcClient
             }
             catch (OperationCanceledException)
             {
-                if (attempt >= _options.MaxRetries)
+                if (!retrySafe || attempt >= _options.MaxRetries)
                     throw new BtcxRpcUnavailableException($"BTCX node RPC method '{method}' timed out.", method);
                 await DelayBeforeRetryAsync(attempt, cancellationToken).ConfigureAwait(false);
             }
             catch (HttpRequestException)
             {
-                if (attempt >= _options.MaxRetries)
+                if (!retrySafe || attempt >= _options.MaxRetries)
                     throw new BtcxRpcUnavailableException($"BTCX node RPC method '{method}' is unavailable.", method);
                 await DelayBeforeRetryAsync(attempt, cancellationToken).ConfigureAwait(false);
             }
@@ -258,6 +289,12 @@ public sealed class BtcxRpcClient : IBtcxRpcClient
     {
         if (value.Length != 64 || value.Any(c => !Uri.IsHexDigit(c)))
             throw new ArgumentException("BTCX transaction and block hashes must be 64 hexadecimal characters.", parameterName);
+    }
+
+    private static void ValidateWalletRoute(string walletName)
+    {
+        if (string.IsNullOrWhiteSpace(walletName) || walletName.Any(c => !(char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.')))
+            throw new ArgumentException("Wallet name must be an explicit simple path segment.", nameof(walletName));
     }
 
     private sealed record RpcRequest(

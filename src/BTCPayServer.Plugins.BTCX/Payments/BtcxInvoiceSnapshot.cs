@@ -7,4 +7,8 @@ public sealed record BtcxInvoiceSnapshot(
     string CryptoCurrency,
     decimal ExchangeRate,
     string RateSource,
-    DateTimeOffset RateTimestamp);
+    DateTimeOffset RateTimestamp,
+    long? CryptoAmountAtomicUnits = null,
+    string? Network = null,
+    string? ReceiveAddress = null,
+    string? ScriptPubKeyHex = null);

@@ -8,6 +8,7 @@ using BTCPayServer.Plugins.BTCX.Rates;
 using BTCPayServer.Rating;
 using BTCPayServer.Services.Rates;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -197,6 +198,7 @@ public sealed class ManualBtcxRateTests
     {
         Assert.IsAssignableFrom<BaseBTCPayServerPlugin>(new Plugin());
         var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddSingleton<ISettingsRepository>(new FakeSettingsRepository(EnabledSettings(0.20m)));
         new Plugin().Execute(services);
 

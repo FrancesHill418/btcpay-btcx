@@ -1,7 +1,7 @@
 # Project state
 
 **Synchronized:** 2026-09-28  
-**Code HEAD before this documentation synchronization:** `ddd3c38` (`test: verify BTCX plugin runtime integration`). The synchronization commit is the current documentation HEAD after this file is committed.
+**Current implementation:** TASK 03.3 follows commit `79e4d5f`; use `git log -1` for the current commit.
 
 ## Project goal
 
@@ -14,10 +14,11 @@ XBoard CNY order
   → BTCPay Greenfield API v1
     → BTCPay Server v2.4.4 CNY invoice
       → BTCX plugin payment method and manual BTCX/CNY quote
-        → (future) PoCX address/URI/QR and payment monitoring
+        → PoCX node RPC and invoice-labeled receive address allocation
+          → (future) Phoenix URI/QR, payment monitoring and settlement
 ```
 
-XBoard's selected provider is its existing BTCPay Greenfield provider at the pinned commit below. BTCPay owns invoice lifecycle and checkout. The plugin registers `BTCX-OnChain`, a contextual manual rate provider, settings UI, and invoice quote snapshot. The currently implemented checkout is a skeleton: it has no destination and is not payable.
+XBoard's selected provider is its existing BTCPay Greenfield provider at the pinned commit below. BTCPay owns invoice lifecycle and checkout. The plugin registers `BTCX-OnChain`, a contextual manual rate provider, settings UI, quote snapshot, BTCX network/address/amount primitives, a private authenticated PoCX RPC client, and a dedicated-wallet receiving address provider. Checkout still lacks a payment URI/QR and no listener detects or settles payments; the project cannot accept BTCX payments yet.
 
 ## Locked versions and source revisions
 
@@ -47,6 +48,9 @@ More detailed baseline/environment records: [baseline.md](baseline.md). The hist
 - TASK 02 — BTCX BTCPay plugin skeleton, settings, contextual rate provider, invoice quote snapshot and unit tests.
 - TASK 02.1 — isolated BTCPay runtime plugin load/Greenfield checkout smoke test.
 - TASK 02.2 — Phoenix PoCX source compatibility audit and test design.
+- TASK 03.1 — BTCX network, address/script and atomic amount primitives; 50/50 tests at completion.
+- TASK 03.2 — PoCX RPC client; mock RPC tests and network-only queries. Commit `79e4d5f`.
+- TASK 03.3 — dedicated node-wallet receive address allocation; mock JSON-RPC covered, no live wallet connected.
 
 TASK 02.1 reports 29/29 ordinary tests and 30/30 runtime smoke test cases passed, with 0 build warnings and 0 errors. This does not mean BTCX can receive or settle a payment.
 
@@ -58,11 +62,11 @@ First release does not use an exchange or Observatory market quote. The administ
 
 Source audit is pinned to PoC-Consortium/phoenix-pocx `v2.4.0` above. Phoenix accepts `btcx:`, `pocx:`, legacy `bitcoin:`, and bare PoCX addresses as input; its canonical output scheme is `btcx:`. Its amounts are whole BTCX with 8 decimal places (`1 BTCX = 100,000,000` atomic units). BTCPay should emit invariant fixed-point amount text (e.g. `0.00000001`, not exponent notation) and a QR of the canonical `btcx:` URI. Network HRPs/prefixes are PoCX-specific and the send UI checks against its active network.
 
-This establishes source-level URI/address/amount compatibility only. No address from the plugin has been tested because the plugin currently generates none; no Phoenix wallet runtime transfer or QR scan/send round trip was executed. Full results and test design: [phoenix-pocx-compatibility.md](phoenix-pocx-compatibility.md).
+This establishes source-level URI/address/amount compatibility only. A mock-generated BTCX address is checked by the plugin's BTCX parser, but no Phoenix wallet runtime transfer or QR scan/send round trip has been executed. Full results and test design: [phoenix-pocx-compatibility.md](phoenix-pocx-compatibility.md).
 
 ## Current unimplemented functionality
 
-- Generate/derive a network-correct BTCX receiving address for an invoice.
+- Verify real isolated regtest node/wallet startup, backup/restore and end-to-end allocation; current address provider is covered by mock RPC only.
 - Present BTCX address, fixed-decimal payment URI, and QR on BTCPay checkout.
 - Observe and reconcile BTCX transaction outputs, including durable restart/reorg handling.
 - Apply mempool/confirmation/settlement rules and update BTCPay invoice state.
@@ -72,15 +76,15 @@ This establishes source-level URI/address/amount compatibility only. No address 
 
 ## Current blockers
 
-1. **Not payable:** `BtcxPaymentLinkExtension.GetPaymentLink` returns `null`; there is no BTCX destination or payment monitor. Do not use the current plugin for customer payments.
+1. **Not payable:** A wallet address is now assigned, but `BtcxPaymentLinkExtension.GetPaymentLink` remains null and there is no BTCX payment monitor/settlement. Do not use the current plugin for customer payments.
 2. **Greenfield prompt deserialization finding:** runtime smoke testing found the persisted `rateTimestamp` is serialized as an integer, while the plugin's `ParsePaymentPromptDetails` failed to deserialize that representation. The basic invoice creation and checkout render passed, but Greenfield responses with activated payment-method details may fail until handled and retested. Do not modify BTCPay core to work around it.
-3. **No chain integration selected and validated:** BTCX node/wallet/indexer repos are pinned as references, but none has been deployed or connected to this plugin. Mainnet must remain out of scope.
+3. **No live regtest integration:** RPC/wallet calls have only mock tests; no BTCX node, wallet, or indexer has been started or connected. Mainnet must remain out of scope.
 4. **XBoard webhook trust checks incomplete:** source audit found the current provider does not enforce the full event/invoice/amount/currency/method/expiry/idempotency policy required for fulfillment; end-to-end callback tests remain outstanding.
 5. **Phoenix evidence is source-only:** exact payload through a real Phoenix wallet remains untested until a destination/URI/QR exists.
 
 ## Next stage
 
-**Next TASK = TASK 03.** It has not been started. This state synchronization does not define or implement its detailed scope; follow the user's TASK 03 instructions before making code changes.
+**Next TASK = TASK 03.4 — payment listener and transaction discovery.** The repository task plan also records indexer evidence and confirmation/reorg requirements; preserve those source-based constraints.
 
 ## Core/source boundary
 
