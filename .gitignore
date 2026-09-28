@@ -4,11 +4,20 @@
 !.env.example
 **/secrets.json
 **/secrets.*.json
+**/*secret*
+**/*password*
+**/*credential*
 **/appsettings.*.local.json
 **/*credentials*
+**/*.credentials
+**/*.creds
+**/*.token
 **/*.seed
 **/*.mnemonic
 **/*.wallet
+**/*.wallet.*
+**/*wallet-backup*
+**/wallet*.dat
 **/wallet.dat
 **/wallets/
 **/wallets/**
@@ -20,7 +29,9 @@
 # .NET build and test outputs
 **/bin/
 **/obj/
+**/target/
 **/TestResults/
+**/test-results/
 artifacts/
 coverage/
 publish/
@@ -37,11 +48,20 @@ publish/
 *.tmp
 *.swp
 *.bak
+**/*.db
+**/*.sqlite
+**/*.sqlite-*
 .DS_Store
 
 # Local Docker/node data; never check in node or database volumes
 docker-data/
 docker-volumes/
 volumes/
+**/docker-data/
+**/docker-volumes/
+**/volumes/
+**/logs/
+**/tmp/
+**/temp/
 btcx-data/
 bitcoin-pocx-data/
