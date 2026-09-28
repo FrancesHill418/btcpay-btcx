@@ -5,6 +5,7 @@ using BTCPayServer.Hosting;
 using BTCPayServer.Payments;
 using BTCPayServer.Plugins.BTCX.Payments;
 using BTCPayServer.Plugins.BTCX.Rates;
+using BTCPayServer.Plugins.BTCX.Rpc;
 using BTCPayServer.Plugins.GlobalSearch;
 using BTCPayServer.Rating;
 using BTCPayServer.Services.Rates;
@@ -44,6 +45,14 @@ public sealed class Plugin : BaseBTCPayServerPlugin
         services.AddSingleton<IPaymentMethodHandler, BtcxPaymentMethodHandler>();
         services.AddSingleton<IPaymentLinkExtension, BtcxPaymentLinkExtension>();
         services.AddSingleton<ICheckoutModelExtension, BtcxCheckoutModelExtension>();
+        services.AddOptions<BtcxRpcOptions>().BindConfiguration(BtcxRpcOptions.SectionName);
+        services.AddHttpClient<IBtcxRpcClient, BtcxRpcClient>((provider, client) =>
+            {
+                var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<BtcxRpcOptions>>().Value;
+                options.Validate();
+                client.Timeout = Timeout.InfiniteTimeSpan;
+            })
+            .ConfigurePrimaryHttpMessageHandler(BtcxRpcHttpHandler.Create);
         services.AddStaticSearch(new ActionResultItemViewModel
         {
             RequiredPolicy = Policies.CanModifyServerSettings,
