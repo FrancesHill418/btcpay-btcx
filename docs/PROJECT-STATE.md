@@ -76,22 +76,20 @@ The pinned Phoenix `parsePaymentUri` was executed from source against the BTCPay
 
 ## Remaining development and release gates
 
-- Make pinned electrs-btcx compatible with this PoCX node REST API (or replace the single production discovery backend after separate review); verify indexed history, UTXO and restart recovery.
-- Run XBoard + Greenfield + BTCPay callback/order completion in a live isolated deployment; current XBoard tests use Laravel HTTP fakes and SQLite.
-- Run Phoenix PoCX on a device/runtime to scan the generated checkout QR and send a regtest transaction.
+- Complete Phoenix PoCX real-device E2E: scan the BTCPay checkout QR, verify the displayed address/amount, send BTCX regtest, and confirm BTCPay settlement. No device, Android SDK/emulator, or Phoenix installable was available in this environment.
+- Keep the development-only PoCX REST compatibility backport operationally pinned or upstreamed before production; the unmodified pinned node source lacks the blockpart endpoint required by pinned bindex/electrs.
 - Exercise wallet recovery across BTCPay/node process restarts and define encrypted/offline production backup handling.
 - Decide the production receiving-key boundary, an approved BTCX/CNY price source, and merchant compensation for deep reorgs after fulfillment.
 
 ## Current blockers
 
-1. **Indexer compatibility:** electrs-btcx 0.11.1/bindex-btcx `eda7c706` exits at startup with HTTP 404 for `/rest/blockpart/<genesis>.bin?offset=0&size=491`; see MILESTONE 06. No second production listener or RPC fallback was added.
-2. **XBoard end-to-end acceptance:** exact live isolated order/payment/confirmation/webhook/order completion passed; a separate real duplicate-webhook replay was not triggered. Underpayment, overpayment and expiry remain covered only by provider tests, not this live run.
-3. **Phoenix device validation:** pinned parser fixture passes, but no real device, QR scan, or wallet send/receive round trip ran.
-4. **Production controls:** node wallet RPC has spend-capable authority; production requires a reviewed receiving-key design, encrypted/offline recovery, approved BTCX/CNY pricing, TLS/secret rotation and reorg policy. Do not enable customer payments based only on these development tests.
+1. **Phoenix device validation:** pinned parser fixture is protocol compatible, but no real device, QR scan, or wallet send/receive round trip ran. Host inspection found no `adb`, Flutter, Android SDK/emulator, Phoenix installable, or attached USB device.
+2. **Upstream node/indexer compatibility:** the isolated electrs regtest passed with the documented PoCX REST backport; the unmodified pinned node still lacks `/rest/blockpart/<genesis>.bin?offset=0&size=491`. No second production listener or RPC fallback was added.
+3. **Production controls:** node wallet RPC has spend-capable authority; production requires a reviewed receiving-key design, encrypted/offline recovery, approved BTCX/CNY pricing, TLS/secret rotation and reorg policy. Do not enable customer payments based only on these development tests.
 
 ## Next stage
 
-**MILESTONE 03 plugin acceptance passed with an Electrum fixture; pinned electrs compatibility is an explicit blocker. MILESTONE 04 provider implementation/tests pass, while live cross-application E2E remains open. Security review is recorded; proceed only to manual review and targeted follow-up, not deployment or mainnet.**
+**MILESTONE 03 BTCX regtest payment, electrs, confirmation and reorg acceptance passed with the documented development node compatibility backport. MILESTONE 04 live exact-payment XBoard E2E and callback/order completion passed; provider tests cover duplicate delivery, underpayment, overpayment and expired invoices. Final development validation remains incomplete until Phoenix real-device E2E is run.**
 
 ## Core/source boundary
 
