@@ -1,7 +1,7 @@
 # Project state
 
 **Synchronized:** 2026-09-28  
-**Current implementation:** MILESTONE 03 plugin flow passed gated BTCPay/PostgreSQL + BTCX regtest acceptance, wallet backup/restore passed, and the XBoard provider patch passes isolated tests. Real electrs indexing and cross-application XBoard E2E remain blocked/outstanding. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
+**Current implementation:** MILESTONE 03 passed a gated BTCPay/PostgreSQL + BTCX regtest acceptance using real electrs-btcx against a development-only PoCX REST compatibility backport; wallet backup/restore passed. XBoard provider tests pass, but live XBoard app-to-app E2E remains unverified. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
 ## Project goal
 
@@ -21,7 +21,7 @@ XBoard CNY order
               → XBoard Greenfield provider + invoice-bound HMAC webhook validation
 ```
 
-XBoard's selected provider is its existing BTCPay Greenfield provider at the pinned commit below; its provider-only implementation patch is preserved under `integrations/xboard`. BTCPay owns invoice lifecycle and checkout. The plugin registers `BTCX-OnChain`, a contextual manual rate provider, settings UI, immutable quote snapshot, BTCX network/address/amount primitives, private authenticated PoCX RPC, dedicated-wallet receiving address allocation, Electrum history discovery, payment persistence, confirmation/reorg state mapping and Phoenix-compatible URI/QR. The gated runtime smoke exercised the real regtest node, wallet RPC and BTCPay payment state machine, but used an Electrum protocol fixture because pinned electrs-btcx cannot start against this node's missing `/rest/blockpart` endpoint. XBoard provider tests pass, but live cross-application E2E remains unverified; do not accept customer payments.
+XBoard's selected provider is its existing BTCPay Greenfield provider at the pinned commit below; its provider-only implementation patch is preserved under `integrations/xboard`. BTCPay owns invoice lifecycle and checkout. The plugin registers `BTCX-OnChain`, a contextual manual rate provider, settings UI, immutable quote snapshot, BTCX network/address/amount primitives, private authenticated PoCX RPC, dedicated-wallet receiving address allocation, Electrum history discovery, payment persistence, confirmation/reorg state mapping and Phoenix-compatible URI/QR. The gated runtime smoke exercised a real regtest node, wallet RPC, real electrs discovery and BTCPay payment state machine. The pinned PoCX v30.2.1 REST backport used for this development verification is preserved under `integrations/electrs-btcx`; the unpatched upstream node remains incompatible with pinned bindex. XBoard provider tests pass, but live cross-application E2E remains unverified; do not accept customer payments.
 
 ## Locked versions and source revisions
 
@@ -55,14 +55,14 @@ More detailed baseline/environment records: [baseline.md](baseline.md). The hist
 - TASK 03.2 — PoCX RPC client; mock tests plus gated loopback regtest host validation. Commit `79e4d5f`.
 - TASK 03.3 — dedicated node-wallet receive address allocation; gated smoke allocated a real regtest receive address through BTCX wallet RPC.
 - TASK 03.0 — rate timestamp legacy serializer compatibility; unit and Greenfield `includePaymentMethods` runtime retrieval covered. Commit `5ea990c`.
-- TASK 03.4 — Electrs/bindex history discovery and idempotent payment sink implemented. Real electrs startup attempted; blocked because pinned bindex requires `/rest/blockpart`, which the current PoCX node returns 404 for.
+- TASK 03.4 — Electrs/bindex history discovery and idempotent payment sink implemented. Real electrs-btcx indexed and served address history, UTXO, raw transaction, mempool and confirmation against an isolated development build with the preserved `/rest/blockpart` backport. The unpatched v30.2.1 node lacks this required route.
 - TASK 03.5 — confirmation/reorg reconciliation. Gated smoke verified 6-confirmation settlement, Processing after block invalidation, and resettlement after reconsideration.
 - TASK 03.6 — Phoenix-compatible `btcx:` URI/checkout QR. Plugin URI vectors and Phoenix v2.4.0 parser fixture pass; no device/QR scan E2E.
-- TASK 03.7 — complete BTCX payment flow. Real regtest wallet RPC, BTCPay invoice/payment persistence, confirmation and reorg transitions passed; history came from a fixture, not electrs.
+- TASK 03.7 — complete BTCX payment flow. Real regtest wallet RPC, electrs discovery, BTCPay invoice/payment persistence, confirmation and reorg transitions passed.
 - MILESTONE 04 — XBoard provider patch binds CNY invoices to BTCX-only order terms and validates signed settlement callbacks. Pinned tests pass 6 tests / 26 assertions; live XBoard/BTCPay E2E remains unverified.
 - MILESTONE 05 — source security review and runtime checks documented in [security-final.md](security-final.md); development wallet recovery passed, while production receiving-key and indexer boundaries remain gates.
 
-`dotnet restore` and `dotnet build` pass (0 warnings/errors). Ordinary `dotnet test` passes 106/107 with the gated runtime test skipped; full gated `dotnet test` passes 107/107 with `BTCPAY_RUNTIME_SMOKE=1` and an isolated local node cookie. It loaded BTCPay v2.4.4 over isolated PostgreSQL, created/retrieved BTCX CNY invoices, rendered checkout, allocated a real BTCX regtest wallet address, sent an exact 37.5 BTCX transaction, persisted it through the listener, settled at six confirmations, and reversed/resettled payment state through invalidate/reconsider. Electrum history still came from a protocol fixture. Wallet backup/restore recovered all 9 labels and 5 wallet transactions. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
+`dotnet restore` and `dotnet build` pass (0 warnings/errors). Final ordinary `dotnet test --no-build` passed 106 tests and skipped one gated runtime smoke; the gated suite using an isolated local node cookie, independent loopback PostgreSQL and real electrs at `127.0.0.1:50401` passed 107/107. It loaded BTCPay v2.4.4, created/retrieved BTCX CNY invoices, rendered checkout, allocated a real BTCX regtest wallet address, sent an exact 37.5 BTCX transaction, discovered/persisted it through electrs and the listener, settled at six confirmations, and reversed/resettled payment state through invalidate/reconsider. A separate 12.345 BTCX transaction validated electrs mempool/history/UTXO/raw transaction then confirmation indexing. Live XBoard/Phoenix device E2E remain unverified. Wallet backup/restore recovered all 9 labels and 5 wallet transactions. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
 ## Manual BTCX/CNY rate
 
