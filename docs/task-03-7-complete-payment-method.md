@@ -1,6 +1,6 @@
 # TASK 03.7 — Complete BTCX Payment Method
 
-Status: implementation complete for the plugin payment flow; live regtest and BTCPay PostgreSQL validation remain in final acceptance.
+Status: plugin payment flow passed gated BTCPay runtime/Greenfield/PostgreSQL checkout and PoCX regtest payment/confirmation/reorg validation with real wallet RPC. The Electrum history input was a fixture because pinned electrs-btcx cannot start against the node REST API; live indexer and cross-application acceptance remain.
 
 ## Invoice creation and immutable snapshot
 

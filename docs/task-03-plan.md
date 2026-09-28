@@ -17,7 +17,7 @@ Status: staged implementation. Network/address/amount, node RPC, receiving addre
 
 ### 03.0 — Repair prompt snapshot serialization (prerequisite) — implemented
 
-Runtime smoke found that serialized integer `rateTimestamp` can make `BtcxPaymentMethodHandler.ParsePaymentPromptDetails` fail with a Newtonsoft `JsonReaderException` (`Unexpected token Integer`, path `rateTimestamp`). A BTCX property converter now accepts supported numeric time units and writes canonical UTC ISO-8601 text, with unit round-trip tests that preserve the quote fields. The live Greenfield retrieval gate (`includePaymentMethods`) remains for the isolated runtime acceptance run; see [task-03-0-prompt-serialization.md](task-03-0-prompt-serialization.md).
+Runtime smoke found that serialized integer `rateTimestamp` can make `BtcxPaymentMethodHandler.ParsePaymentPromptDetails` fail with a Newtonsoft `JsonReaderException` (`Unexpected token Integer`, path `rateTimestamp`). A BTCX property converter now accepts supported numeric time units and writes canonical UTC ISO-8601 text, with unit round-trip tests that preserve the quote fields. The isolated PostgreSQL/Greenfield retrieval gate (`includePaymentMethods`) passes. The full development smoke also exercised it with the isolated BTCX regtest wallet RPC. See [task-03-0-prompt-serialization.md](task-03-0-prompt-serialization.md).
 
 ### 03.1 — BTCX network identity and amount primitives
 

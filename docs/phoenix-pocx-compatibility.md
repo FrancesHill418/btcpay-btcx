@@ -106,3 +106,8 @@ The next payment-prompt integration should:
 5. Prove the URI/QR round trip in Phoenix v2.4.0 on mainnet-like and test networks before adding any listener/settlement behavior.
 
 This task does not implement those steps or a payment listener.
+
+
+## Development acceptance update (2026-09-28)
+
+The pinned Phoenix v2.4.0 `parsePaymentUri` function was executed from its source checkout against `btcx:rpocx1qcpueamxr0aa82t7dtvhzdksq59c993f93lzedt?amount=37.5` and the one-atomic-unit amount. It returned the exact address, amount and regtest network; a `bitcoin:bc1…` fixture was rejected as a non-PoCX address. Result: **PROTOCOL COMPATIBLE**. This is a parser fixture only. No Phoenix device/runtime, QR camera scan, or wallet send/receive E2E was run; **REAL DEVICE E2E VERIFIED: NO**.
