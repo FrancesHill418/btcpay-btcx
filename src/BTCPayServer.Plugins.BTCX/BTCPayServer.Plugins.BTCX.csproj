@@ -25,4 +25,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <Target Name="SetBtcxRazorViewTargetPath" BeforeTargets="AssignRazorGenerateTargetPaths">
+    <ItemGroup>
+      <RazorGenerate Update="Views/BtcxSettings/Index.cshtml">
+        <TargetPath>Plugins/BTCX/Views/BtcxSettings/Index.cshtml</TargetPath>
+      </RazorGenerate>
+    </ItemGroup>
+  </Target>
 </Project>
