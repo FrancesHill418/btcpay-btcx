@@ -1,3 +1,5 @@
+using Newtonsoft.Json;
+
 namespace BTCPayServer.Plugins.BTCX.Payments;
 
 public sealed record BtcxInvoiceSnapshot(
@@ -7,7 +9,7 @@ public sealed record BtcxInvoiceSnapshot(
     string CryptoCurrency,
     decimal ExchangeRate,
     string RateSource,
-    DateTimeOffset RateTimestamp,
+    [property: JsonConverter(typeof(BtcxRateTimestampJsonConverter))] DateTimeOffset RateTimestamp,
     long? CryptoAmountAtomicUnits = null,
     string? Network = null,
     string? ReceiveAddress = null,

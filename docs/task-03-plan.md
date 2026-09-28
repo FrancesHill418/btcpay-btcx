@@ -15,9 +15,9 @@ Status: planning only. No blockchain payment flow is implemented. Do not treat t
 
 ## Ordered implementation stages and gates
 
-### 03.0 — Repair prompt snapshot serialization (prerequisite)
+### 03.0 — Repair prompt snapshot serialization (prerequisite) — implemented
 
-Runtime smoke found that serialized integer `rateTimestamp` can make `BtcxPaymentMethodHandler.ParsePaymentPromptDetails` fail with a Newtonsoft `JsonReaderException` (`Unexpected token Integer`, path `rateTimestamp`). First add a round-trip compatibility test for saved prompt Details and persisted invoice retrieval. Choose one canonical timestamp representation and safely read already-saved values. Gate: create and retrieve an invoice through Greenfield with `includePaymentMethods` and parse its BTCX prompt; no rate snapshot fields may be lost.
+Runtime smoke found that serialized integer `rateTimestamp` can make `BtcxPaymentMethodHandler.ParsePaymentPromptDetails` fail with a Newtonsoft `JsonReaderException` (`Unexpected token Integer`, path `rateTimestamp`). A BTCX property converter now accepts supported numeric time units and writes canonical UTC ISO-8601 text, with unit round-trip tests that preserve the quote fields. The live Greenfield retrieval gate (`includePaymentMethods`) remains for the isolated runtime acceptance run; see [task-03-0-prompt-serialization.md](task-03-0-prompt-serialization.md).
 
 ### 03.1 — BTCX network identity and amount primitives
 

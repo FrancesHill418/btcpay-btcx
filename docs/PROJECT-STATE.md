@@ -77,7 +77,7 @@ This establishes source-level URI/address/amount compatibility only. A mock-gene
 ## Current blockers
 
 1. **Not payable:** A wallet address is now assigned, but `BtcxPaymentLinkExtension.GetPaymentLink` remains null and there is no BTCX payment monitor/settlement. Do not use the current plugin for customer payments.
-2. **Greenfield prompt deserialization finding:** runtime smoke testing found the persisted `rateTimestamp` is serialized as an integer, while the plugin's `ParsePaymentPromptDetails` failed to deserialize that representation. The basic invoice creation and checkout render passed, but Greenfield responses with activated payment-method details may fail until handled and retested. Do not modify BTCPay core to work around it.
+2. **Greenfield runtime retest pending:** a BTCX-scoped converter now reads the previously observed integer `rateTimestamp` and emits canonical UTC ISO strings. The isolated Greenfield `includePaymentMethods` runtime smoke still needs to be rerun; BTCPay core remains unchanged.
 3. **No live regtest integration:** RPC/wallet calls have only mock tests; no BTCX node, wallet, or indexer has been started or connected. Mainnet must remain out of scope.
 4. **XBoard webhook trust checks incomplete:** source audit found the current provider does not enforce the full event/invoice/amount/currency/method/expiry/idempotency policy required for fulfillment; end-to-end callback tests remain outstanding.
 5. **Phoenix evidence is source-only:** exact payload through a real Phoenix wallet remains untested until a destination/URI/QR exists.
