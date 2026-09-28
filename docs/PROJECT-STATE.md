@@ -44,8 +44,8 @@ XBoard's selected provider is its existing BTCPay Greenfield provider at the pin
 | XBoard | commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` | Greenfield provider source revision. |
 | `bitcoin-pocx` | `005bf0098e217b76a2627bfae458dff4f5718dd5` | Isolated regtest node/wallet used for runtime smoke; node is not integrated into BTCPay. |
 | `btcx` | `v0.1.1`, commit `6907bacb132324e460cbe55d3765b4350bb56e61` | BTCX Rust wallet stack reference; not linked into plugin. |
-| `bindex-btcx` | commit `eda7c70660baa06affef464c7ea1e131c39304f1` | Indexer reference; not integrated. |
-| `electrs-btcx` | `v0.11.1-btcx.1`, commit `2f78c63e20215e20944767f0901209c4d740fe5b` | Electrum indexer reference; not integrated. |
+| `bindex-btcx` | commit `eda7c70660baa06affef464c7ea1e131c39304f1` | External indexer component used in isolated regtest acceptance; not vendored into the plugin. |
+| `electrs-btcx` | `v0.11.1-btcx.1`, commit `2f78c63e20215e20944767f0901209c4d740fe5b` | External indexer service used in isolated regtest acceptance; not vendored into the plugin. |
 | `esplora-pocx` | commit `2b7e1c8a5d2dde2d688974e5bdaf604d223283c8` | REST indexer reference; not integrated. |
 | Phoenix PoCX | `v2.4.0`, commit `bc4713306c9c2cd3cbf989a3e355e0705b485218` | Pinned parser fixture executed; no device/QR/wallet round trip. |
 
@@ -106,3 +106,7 @@ The pinned Phoenix `parsePaymentUri` was executed from source against the BTCPay
 ## Core/source boundary
 
 No BTCPay Server core files or XBoard production files are changed. Do not deploy production, connect BTCX mainnet, or enable customer payments while the blockers above remain.
+
+## Release preparation
+
+The `development-complete` tag points to baseline commit `57995b3ecc154069c94d06c967cbac2c54ab3324`. The repeatable isolated staging procedure, production deployment gates, backup/recovery guidance, and release checklist are in [staging-deployment.md](staging-deployment.md), [production-deployment.md](production-deployment.md), [backup-and-recovery.md](backup-and-recovery.md), and [release-checklist.md](release-checklist.md). Staging uses regtest only. Production remains unsupported: mainnet wallet allocation is explicitly rejected, Phoenix real-device E2E is pending, the node/indexer compatibility patch is development-only, and production key custody/rate/recovery controls are unresolved. Release archives must exclude private keys, wallet seeds, API keys, webhook secrets, `.env` files, databases, Docker volumes, and BTCX blockchain data.
