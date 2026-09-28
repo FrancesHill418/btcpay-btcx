@@ -3,6 +3,18 @@
 **Synchronized:** 2026-09-28  
 **Current implementation:** MILESTONE 03 passed a gated BTCPay/PostgreSQL + BTCX regtest acceptance using real electrs-btcx against a development-only PoCX REST compatibility backport; wallet backup/restore passed. XBoard live order→Greenfield→BTCX regtest payment→confirmation→signed webhook→paid-order E2E passed in an isolated environment. Phoenix parser is **PROTOCOL COMPATIBLE**, but **REAL DEVICE E2E VERIFIED: NO** because no device/emulator runtime is available. Development validation remains incomplete on the Phoenix device gate. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
+## Final validation status
+
+| Validation | Status | Evidence / scope |
+|---|---|---|
+| XBoard Live E2E | **PASS** | CNY 12.34 → 61.7 BTCX regtest → BTCPay confirmation and `InvoiceSettled` → XBoard webhook HTTP 200 → order status 3. |
+| BTCX regtest | **PASS** | Real wallet transaction, listener detection, confirmation, invoice settlement and reorg handling passed in isolated development services. |
+| electrs-btcx | **PASS** | Real regtest indexing and address/history/UTXO/transaction/confirmation queries passed with the documented development PoCX REST compatibility backport. |
+| Phoenix protocol compatibility | **PASS** | Pinned Phoenix PoCX parser accepted the BTCX URI fixture. |
+| Phoenix real-device E2E | **PENDING** | No attached device, `adb`, Flutter runtime, Android SDK/emulator or Phoenix installable was available; QR scan/send/receive was not verified. |
+| `dotnet build` | **PASS** | 0 warnings, 0 errors. |
+| `dotnet test` | **PASS** | 106 passed, 0 failed, 1 gated runtime smoke skipped; prior isolated runtime smoke passed 107/107. |
+
 ## Project goal
 
 Provide BTCX as an externally maintained BTCPay Server payment-method plugin so XBoard can create CNY orders through BTCPay Greenfield, present BTCX payment instructions, observe valid BTCX payments, and only then notify XBoard for fulfillment. Do not modify BTCPay Server core or XBoard production code as part of plugin implementation.
@@ -62,7 +74,7 @@ More detailed baseline/environment records: [baseline.md](baseline.md). The hist
 - MILESTONE 04 — XBoard provider patch binds CNY invoices to BTCX-only order terms and validates signed settlement callbacks. Pinned tests pass 6 tests / 25 assertions. Isolated live XBoard E2E passed exact BTCX regtest payment, confirmation, successful HMAC-protected `InvoiceSettled` webhook delivery (HTTP 200), matching invoice/order IDs and XBoard paid state. Live duplicate delivery was not separately triggered; provider duplicate tests pass.
 - MILESTONE 05 — source security review and runtime checks documented in [security-final.md](security-final.md); development wallet recovery passed, while production receiving-key and indexer boundaries remain gates.
 
-`dotnet restore` and `dotnet build` pass (0 warnings/errors). Final ordinary `dotnet test --no-build` passed 106 tests and skipped one gated runtime smoke; the gated suite using isolated loopback PostgreSQL and real electrs passed 107/107. Exact 37.5 BTCX regtest payment settled at six confirmations and reversed/resettled through invalidate/reconsider; wallet backup/restore recovered all 9 labels and 5 wallet transactions. The live XBoard E2E added a 61.7 BTCX regtest transaction (`d1902feecaff154d8734f51c1e6238e867e1507971d860975d62061f40c331ab`) against CNY 12.34 at snapshotted rate 0.20; BTCPay settled the invoice and delivered the actual `InvoiceSettled` webhook with HTTP 200, and XBoard order status became paid. No Phoenix device E2E was possible: `adb` and Flutter are absent, and `/dev/bus/usb` is absent. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
+`dotnet restore` and `dotnet build` pass (0 warnings/errors). The current `dotnet test` run passed 106 tests, failed 0 and skipped one gated runtime smoke; the gated suite using isolated loopback PostgreSQL and real electrs previously passed 107/107. Exact 37.5 BTCX regtest payment settled at six confirmations and reversed/resettled through invalidate/reconsider; wallet backup/restore recovered all 9 labels and 5 wallet transactions. The live XBoard E2E added a 61.7 BTCX regtest transaction (`d1902feecaff154d8734f51c1e6238e867e1507971d860975d62061f40c331ab`) against CNY 12.34 at snapshotted rate 0.20; BTCPay settled the invoice and delivered the actual `InvoiceSettled` webhook with HTTP 200, and XBoard order status became paid. No Phoenix device E2E was possible: `adb` and Flutter are absent, and `/dev/bus/usb` is absent. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
 ## Manual BTCX/CNY rate
 

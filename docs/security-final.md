@@ -27,8 +27,8 @@ Review date: 2026-09-28. Scope: BTCX plugin at the current development revision 
 
 - Initial electrs-btcx startup against unmodified PoCX v30.2.1 failed because `/rest/blockpart/<genesis>.bin?offset=0&size=491` returned HTTP 404. A development-only backport of Bitcoin Core PR #33657, adapted to v30's API, is preserved under `integrations/electrs-btcx`. No consensus rules were changed and no RPC fallback listener was added. The isolated patched node and pinned electrs-btcx passed real address/history/UTXO/mempool/transaction/confirmation checks and the BTCPay invoice smoke. Unpatched upstream compatibility remains an operational requirement. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 - The gated BTCPay payment lifecycle passed with real node/wallet RPC and real electrs discovery; payment settled after six confirmations and moved back to processing then settled after a real invalidate/reconsider reorg cycle.
-- Phoenix v2.4.0 parser fixture is **PROTOCOL COMPATIBLE**. There is no real device/QR/send/receive E2E evidence.
-- XBoard provider tests pass with in-memory SQLite and HTTP fakes. There is no live Greenfield callback or XBoard order-completion evidence.
+- Phoenix v2.4.0 parser fixture is **PROTOCOL COMPATIBLE**. Real device/QR/send/receive E2E remains pending.
+- XBoard provider tests pass with in-memory SQLite and HTTP fakes; a live isolated Greenfield callback and XBoard order-completion E2E also passed as recorded below.
 - The manual rate is administrator-entered. No trustworthy native BTCX/CNY market source has been approved.
 - Before any manual mainnet review, replace/review the spend-capable node wallet authority, complete encrypted/offline backup and restore drills, upstream or operationally pin the PoCX/electrs compatibility patch, provision least-privilege service credentials, verify HTTPS webhook delivery and secret rotation, and define deep-reorg compensation and rate governance. Phoenix device E2E remains unverified and must be closed or explicitly accepted in that review. No mainnet connection or deployment occurred.
 

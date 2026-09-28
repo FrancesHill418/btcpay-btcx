@@ -58,6 +58,7 @@ Phoenix remains **PROTOCOL COMPATIBLE** by the pinned parser fixture, but **REAL
 
 ## Final validation delta (2026-09-28)
 
+- Latest `dotnet build` passed with 0 warnings/errors. Latest `dotnet test` passed 106, failed 0, skipped 1 gated runtime smoke; it requires `BTCX_RUNTIME_SMOKE=1` and an isolated development PostgreSQL. The explicitly gated runtime smoke was previously run and passed 107/107 with real regtest and electrs.
 - After applying the compatibility patch, `dotnet restore` passed, `dotnet build --no-restore` passed with 0 warnings/errors, and the complete gated suite passed 107/107. The runtime smoke now connects to real electrs and real isolated PostgreSQL.
 - The separate HTTP REST checks returned 200 for `/rest/chaininfo.json`, `/rest/blockhashbyheight/0.bin`, `/rest/block/<genesis>.bin`, `/rest/blockpart/<genesis>.bin?offset=0&size=491`, and `/rest/spenttxouts/<genesis>.bin`; invalid range returned 400 and an unknown hash returned 404. The electrs server answered `server.version` as `electrs/0.11.1` and indexed the real address/transaction described above.
 - Final ordinary `dotnet restore && dotnet build --no-restore && dotnet test --no-build` passed restore/build (0 warnings/errors) and 106 tests; one runtime smoke was skipped by its default gate. The same full suite with isolated PostgreSQL, regtest node cookie and real electrs passed 107/107, 0 skipped.
