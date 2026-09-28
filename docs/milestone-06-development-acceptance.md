@@ -38,7 +38,7 @@ RPC and PostgreSQL were bound to loopback. The smoke read the isolated developme
 ## Remaining acceptance limits
 
 - Real electrs/bindex history, UTXO, mempool and confirmation passed against an isolated PoCX build carrying the documented REST backport. Indexer restart/recovery was not exercised.
-- Live XBoard + BTCPay Greenfield webhook delivery and order completion remain unverified.
+- At the time of this earlier checkpoint, live XBoard delivery/order completion remained unverified; see the final E2E update below.
 - Phoenix protocol compatibility passed, but real device and QR/send/receive E2E did not run.
 - Wallet restore passed in regtest, but encrypted/offline backup handling and service-restart recovery remain unverified.
 - BTCX/CNY quote is a manually administered rate, not a verified market feed.
@@ -46,9 +46,19 @@ RPC and PostgreSQL were bound to loopback. The smoke read the isolated developme
 
 These are development acceptance results only. No deployment or mainnet connection was performed or authorized.
 
+## Final E2E validation update (2026-09-28)
+
+The stale XBoard/Phoenix status bullets above are superseded by this update. XBoard live E2E passed in isolated loopback services using XBoard commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`, BTCPay v2.4.4 and BTCX regtest. Real XBoard order `2026092817090198674274629` (CNY 12.34) created Greenfield invoice `M1pw6WxA1RZjFWTeveh4ct`, with matching `metadata.orderId`, BTCX-CHAIN, BTCX amount 61.7, quote snapshot rate 0.20, and a `btcx:` address/URI. Transaction `d1902feecaff154d8734f51c1e6238e867e1507971d860975d62061f40c331ab` was sent on regtest and detected by BTCPay. The invoice settled, BTCPay's actual InvoiceSettled webhook returned HTTP 200, and the XBoard order reached paid status (`status=3`) with callback invoice ID matching the invoice ID. The webhook code validates the BTCPay-Sig HMAC-SHA256 using constant-time comparison over the raw payload. No fake webhook was used for successful flow.
+
+The live run exposed and fixed the provider's payment method ID: BTCPay Greenfield serves `BTCX-CHAIN`, not `BTCX-OnChain`. The patch and updated provider tests are preserved in `integrations/xboard/0001-btcpay-btcx-provider.patch`; provider tests passed (6 tests, 25 assertions).
+
+Live duplicate webhook redelivery was not run because the BTCPay session needed for its UI-only redelivery route was unavailable; duplicate behavior remains covered by provider tests. Underpayment, overpayment and expiry were not exercised live in this XBoard run and remain non-live coverage.
+
+Phoenix remains **PROTOCOL COMPATIBLE** by the pinned parser fixture, but **REAL DEVICE E2E VERIFIED: NO**. The host has no `adb`, no Flutter runtime, and no `/dev/bus/usb`; no Phoenix device/emulator scan/send/receive path could be run. No production environment, BTCX mainnet or mainnet funds were used. This unresolved device requirement means final development validation is incomplete.
+
 ## Final validation delta (2026-09-28)
 
 - After applying the compatibility patch, `dotnet restore` passed, `dotnet build --no-restore` passed with 0 warnings/errors, and the complete gated suite passed 107/107. The runtime smoke now connects to real electrs and real isolated PostgreSQL.
 - The separate HTTP REST checks returned 200 for `/rest/chaininfo.json`, `/rest/blockhashbyheight/0.bin`, `/rest/block/<genesis>.bin`, `/rest/blockpart/<genesis>.bin?offset=0&size=491`, and `/rest/spenttxouts/<genesis>.bin`; invalid range returned 400 and an unknown hash returned 404. The electrs server answered `server.version` as `electrs/0.11.1` and indexed the real address/transaction described above.
 - Final ordinary `dotnet restore && dotnet build --no-restore && dotnet test --no-build` passed restore/build (0 warnings/errors) and 106 tests; one runtime smoke was skipped by its default gate. The same full suite with isolated PostgreSQL, regtest node cookie and real electrs passed 107/107, 0 skipped.
-- XBoard live app-to-app delivery/order completion and Phoenix real-device scan/send/receive remain unverified; provider tests and parser fixture are the alternatives. The official `.ps1` testkit was not run because `pwsh` is unavailable; shell/curl and Electrum protocol checks covered equivalent node/indexer conditions.
+- The following final update closes XBoard exact-payment delivery/order completion, while Phoenix device scan/send/receive remains unverified. The official `.ps1` testkit was not run because `pwsh` is unavailable; shell/curl and Electrum protocol checks covered equivalent node/indexer conditions.

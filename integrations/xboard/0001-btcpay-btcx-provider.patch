@@ -30,7 +30,7 @@ index a1ec49e..8b2055d 100644
 +/** XBoard's Greenfield provider. Keep chain/wallet logic in the BTCPay plugin. */
  class Plugin extends AbstractPlugin implements PaymentInterface
  {
-+    private const BTCX_PAYMENT_METHOD = 'BTCX-OnChain';
++    private const BTCX_PAYMENT_METHOD = 'BTCX-CHAIN';
 +    private const CURRENCY = 'CNY';
 +
      public function boot(): void
@@ -679,8 +679,8 @@ index 0000000..4dc4deb
 +            str_ends_with($request->url(), '/api/v1/stores/store-1/invoices') &&
 +            $request['amount'] === '12.34' && $request['currency'] === 'CNY' &&
 +            $request['metadata']['orderId'] === 'order-1' &&
-+            $request['checkout']['paymentMethods'] === ['BTCX-OnChain'] &&
-+            $request['checkout']['defaultPaymentMethod'] === 'BTCX-OnChain' &&
++            $request['checkout']['paymentMethods'] === ['BTCX-CHAIN'] &&
++            $request['checkout']['defaultPaymentMethod'] === 'BTCX-CHAIN' &&
 +            $request['checkout']['speedPolicy'] === 'LowSpeed' &&
 +            $request['checkout']['paymentTolerance'] === 0);
 +        Http::assertSent(fn ($request) => $request->method() === 'POST' &&
@@ -788,7 +788,7 @@ index 0000000..4dc4deb
 +    {
 +        \Illuminate\Support\Facades\DB::table('btcpay_invoice_bindings')->insert([
 +            'invoice_id' => 'invoice-1', 'store_id' => 'store-1', 'trade_no' => 'order-1',
-+            'expected_amount_cents' => 1234, 'currency' => 'CNY', 'payment_method_id' => 'BTCX-OnChain',
++            'expected_amount_cents' => 1234, 'currency' => 'CNY', 'payment_method_id' => 'BTCX-CHAIN',
 +            'speed_policy' => 'LowSpeed',
 +            'checkout_link' => 'http://127.0.0.1:8080/i/invoice-1', 'created_at' => now(), 'updated_at' => now(),
 +        ]);
@@ -802,13 +802,13 @@ index 0000000..4dc4deb
 +        ];
 +    }
 +
-+    private function invoice(string $status, float $paidAmount = 0, string $currency = 'CNY', string $orderId = 'order-1', string $additionalStatus = 'None', bool $settledPayment = false, string $paymentMethodId = 'BTCX-OnChain'): array
++    private function invoice(string $status, float $paidAmount = 0, string $currency = 'CNY', string $orderId = 'order-1', string $additionalStatus = 'None', bool $settledPayment = false, string $paymentMethodId = 'BTCX-CHAIN'): array
 +    {
 +        return [
 +            'id' => 'invoice-1', 'storeId' => 'store-1', 'amount' => 12.34, 'paidAmount' => $paidAmount,
 +            'currency' => $currency, 'status' => $status, 'additionalStatus' => $additionalStatus,
 +            'metadata' => ['orderId' => $orderId],
-+            'checkout' => ['paymentMethods' => ['BTCX-OnChain'], 'speedPolicy' => 'LowSpeed', 'paymentTolerance' => 0],
++            'checkout' => ['paymentMethods' => ['BTCX-CHAIN'], 'speedPolicy' => 'LowSpeed', 'paymentTolerance' => 0],
 +            'paymentMethods' => [[
 +                'activated' => true, 'paymentMethodId' => $paymentMethodId,
 +                'payments' => $settledPayment ? [['status' => 'Settled']] : [],
