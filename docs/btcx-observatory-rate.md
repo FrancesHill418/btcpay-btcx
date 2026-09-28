@@ -68,6 +68,6 @@ Convert the selected USD amount to CNY using a separately approved and fresh USD
 
 ## Recommendation
 
-Keep the existing architecture preference for a CNY-denominated XBoard order and BTCPay invoice **only after** a verified BTCX rate source and BTCX payment method exist. Have the BTCX plugin expose a custom `IRateProvider`/BTCPay rate-rule integration for the primary verified market source. Keep the Observatory range as an explicitly labeled secondary **valuation reference**, never as an automatic market quote. Permit an administrator-set fixed reference only as an audited, short-lived override. The present lack of a native market pair remains a production blocker for BTCX checkout.
+This TASK 01.6.2 recommendation was superseded for the first release by TASK 01.6.3: the selected source is an administrator-managed manual BTCX/CNY rate, not a market quote. The Observatory range remains a valuation reference only and is not used by the plugin. A verified native market pair would be required only if a future release changes to live-market pricing. BTCX checkout is currently blocked for the separate reason that no receiving address or payment monitor exists; see [PROJECT-STATE.md](PROJECT-STATE.md).
 
 Sources: [Observatory economy page](https://observatory.bitcoin-pocx.org/economy), [Observatory docs](https://observatory.bitcoin-pocx.org/docs), [documented HTTP API](https://observatory.bitcoin-pocx.org/docs/api), [PoC-Consortium public repositories](https://github.com/orgs/PoC-Consortium/repositories).

@@ -25,7 +25,7 @@ The specified XBoard source is commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`
 1. `app/Http/Controllers/V1/User/OrderController::save()` calls `OrderService::createFromRequest()` to persist an order with a `trade_no` and integer CNY minor-unit `total_amount`. `OrderController::checkout()` loads the enabled payment record and calls `PaymentService::pay()`.
 2. `app/Services/PaymentService::pay()` passes `trade_no`, `total_amount`, and a generated XBoard `notify_url` to the provider.
 3. `plugins-core/Btcpay/Plugin.php`, class `Plugin`, method `pay()`, converts the amount from cents to CNY, sends `POST /api/v1/stores/{storeId}/invoices` with `metadata.orderId = trade_no`, then returns `checkoutLink` to XBoard's checkout response.
-4. A Greenfield webhook must be registered on BTCPay for that store, targeting XBoard's generated `/api/v1/guest/payment/notify/{method}/{uuid}` URL. The current `Plugin::pay()` does not use the passed `notify_url` and does not call the webhook-registration endpoint; the configured callback therefore has to be set up separately today.
+4. A Greenfield webhook must be registered on BTCPay for that store, targeting XBoard's generated `/api/v1/guest/payment/notify/{method}/{uuid}` URL. The pinned XBoard `Plugin::pay()` does not use the passed `notify_url` and does not call the webhook-registration endpoint; the configured callback therefore has to be set up separately today.
 5. `app/Http/Routes/V1/GuestRoute::map()` allows GET and POST to the notify route. `app/Http/Controllers/V1/Guest/PaymentController::notify()` resolves the configured provider, calls `Plugin::notify()`, and if it returns a trade number passes it to `handle()`/`OrderService::paid()`.
 
 This confirms the intended high-level path:
@@ -71,7 +71,7 @@ XBoard's provider already speaks Greenfield: the endpoint, `metadata.orderId`, `
 
 ## Runtime proof status
 
-The immutable BTCPay source and its v2.4.4 `GreenfieldAPITests.cs`/`WebhooksTests.cs` were inspected, including tests for invoice creation, payment event ordering, event payloads, and settled/invalid state. No XBoard-to-BTCPay end-to-end instance was started in this task: the VPS has Docker but no PHP CLI, Composer, installed XBoard dependencies, BTCPay test stack, or BTCX/mock payment-method plugin. Source-level compatibility is therefore documented; create-invoice, webhook registration/delivery, and XBoard signature handling still require an isolated runtime smoke test before any production use.
+The immutable BTCPay source and its v2.4.4 `GreenfieldAPITests.cs`/`WebhooksTests.cs` were inspected, including tests for invoice creation, payment event ordering, event payloads, and settled/invalid state. TASK 02.1 later exercised the plugin inside BTCPay's isolated test host and verified Greenfield CNY invoice creation, checkout rendering, and rate snapshots. An XBoard-to-BTCPay end-to-end instance was not started: XBoard callback signature handling, webhook delivery/registration, and security-negative cases remain unverified. See [runtime-smoke-test.md](runtime-smoke-test.md) for the actual scope and the recorded prompt-parser issue.
 
 ## Pinned source paths
 

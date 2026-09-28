@@ -1,10 +1,10 @@
 # BTCX × BTCPay architecture audit
 
-**Audit basis:** public upstream documentation and default-branch repository pages viewed 2026-09-26. This directory has no usable Git checkout, so its intended BTCPay version, branch, package lock, .NET SDK pin, and plugin implementation cannot be established. Upstream `master` is reference material, not a deployment compatibility promise.
+**Audit basis:** public upstream documentation and default-branch repository pages viewed 2026-09-26. This was an initial architecture audit before the repository baseline and plugin were established. The current pinned versions, implementation, runtime evidence, and blockers are tracked in [PROJECT-STATE.md](PROJECT-STATE.md) and [baseline.md](baseline.md). Upstream `master` remains reference material, not a deployment compatibility promise.
 
 ## Findings
 
-BTCPay's current extension model keeps altcoin support outside core. Its current Altcoins guide says to build a plugin extending `BaseBTCPayServerPlugin`; the plugin registers the coin network, payment handler, services, and UI extension points. The official template has a plugin project, a test project, and a BTCPay submodule, and its entry point registers services from `Execute`. The template currently documents .NET SDK 10 or later. The concrete plugin must pin to a stable BTCPay tag and set its `PluginDependency` to that same version before implementation.
+BTCPay's current extension model keeps altcoin support outside core. Its current Altcoins guide says to build a plugin extending `BaseBTCPayServerPlugin`; the plugin registers the coin network, payment handler, services, and UI extension points. The official template has a plugin project, a test project, and a BTCPay submodule, and its entry point registers services from `Execute`. The template currently documents .NET SDK 10 or later. The concrete plugin subsequently pinned to BTCPay v2.4.4 and set its `PluginDependency` accordingly; runtime loading is recorded in [runtime-smoke-test.md](runtime-smoke-test.md).
 
 The Monero plugin is a useful end-to-end reference for plugin loading, wallet/node RPC configuration, payment callbacks, UI, and deployment integration. It is not a safe BTCX design to copy wholesale: its README warns it uses one shared wallet across stores, which is unsuitable for a multi-tenant production payment receiver. BTCX should keep receiving separate from spending and derive/store per-invoice receiving scripts without putting a hot spending wallet in the invoice path.
 

@@ -1,6 +1,6 @@
 # Architecture decision: BTCPay 2.4.4 and XBoard Greenfield
 
-**Status:** recommended architecture for review. This document does not authorize or start TASK 02. Compatibility basis is BTCPay Server `v2.4.4` at `2d5a0d8077bb33af080e949031da33d84b80638d` and XBoard `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`.
+**Status:** architecture decision from TASK 01.6; implementation status has since advanced through TASK 02.2. Current project state and blockers are in [PROJECT-STATE.md](PROJECT-STATE.md). Compatibility basis is BTCPay Server `v2.4.4` at `2d5a0d8077bb33af080e949031da33d84b80638d` and XBoard `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`.
 
 ## API
 
@@ -16,9 +16,9 @@ Option B (XBoard converts CNY to a BTCX amount and creates a BTCX invoice) is te
 
 ## Rate
 
-**BTCX custom rate provider integrated with BTCPay's rate framework.** Stock v2.4.4 providers do not establish a BTCX market quote. The plugin should add a reviewed BTCX rate source implementing `IRateProvider` (or equivalent plugin-owned adapter into rate rules), return explicit pair(s) such as BTCX/CNY, and let BTCPay calculate and freeze the payment prompt at invoice creation.
+**First release: administrator-managed manual BTCX/CNY rate through the plugin's `IContextualRateProvider`.** It reads enabled/rate/updatedAt configuration for each contextual request and snapshots the rate into each invoice prompt. No live market source is used. This design and implementation are documented in [manual-rate.md](manual-rate.md) and [plugin-architecture.md](plugin-architecture.md).
 
-No rate venue has been selected in this audit. A real BTCX/CNY source (or explicitly approved BTCX/USDT or BTCX/USD plus a second fiat conversion) is a blocker for live BTCX invoices. A quote must include source and observation time, reject stale/abnormal/failing data, round once to BTCX base units, and never change after invoice creation. See [currency-flow.md](currency-flow.md).
+The manual rate is a configured reference value, not an executable market quote. It must be valid and configured before BTCX invoice creation. A future market-rate mode would need its own reviewed source and stale/abnormal/failure policy. Existing invoice snapshots are not repriced when the administrator changes the rate.
 
 ## Webhook
 
@@ -54,10 +54,10 @@ No plugin implementation is included here.
 
 ## Blockers and validation gates
 
-1. **Rate source unresolved:** there is no selected, reviewed BTCX/CNY (or approved conversion route) source. CNY invoice creation can work in BTCPay, but a BTCX prompt cannot be proven until this is resolved.
+1. **No spend destination or payment pipeline:** the plugin's payment link is still null; no BTCX address, URI, payment monitoring, or settlement exists. The manual quote provider does not make the invoice payable.
 2. **BTCX payment pipeline unproven:** BTCPay's built-in on-chain handler assumes standard NBitcoin/NBXplorer behavior. PoCX/BTCX custom header and indexer compatibility must be validated; custom listener/reconciliation may be required.
 3. **Existing XBoard provider is unsafe to fulfill:** it accepts any validly signed invoice event as a paid callback and omits state/currency/amount/method/expiry checks. No production payments should use it for fulfillment until the validation flow above is implemented and tested.
-4. **No end-to-end mock smoke test:** this VPS currently has no PHP CLI, Composer, XBoard vendor dependencies, BTCPay test deployment, or mock BTCX payment-method plugin. Source tests in BTCPay confirm built-in event/API behavior, but do not prove XBoard integration. An isolated test stack must be created before claiming the XBoard→Greenfield→checkoutLink→webhook loop works.
+4. **XBoard end-to-end webhook remains unproven:** TASK 02.1 exercised the plugin inside the pinned BTCPay test host, but did not run XBoard or deliver a webhook through its provider/controller. Do not treat the Greenfield plugin smoke test as proof of XBoard integration; an isolated XBoard callback test is still needed before production use.
 5. **Manual webhook wiring:** XBoard generates a `notify_url`, but the current BTCPay provider ignores it and never registers a webhook. Operator setup or future provider tooling must make webhook URL/secret configuration explicit.
 
 ## Decision summary
@@ -70,7 +70,8 @@ No plugin implementation is included here.
 | Fulfillment event | `InvoiceSettled`, after retrieved invoice and order checks; reject manual mark by default |
 | XBoard adaptation | Harden existing Greenfield provider/notify and persist invoice/event identity |
 | BTCPay core | No changes |
-| TASK 02 | **Do not start yet** until the rate source is selected and the isolated mock Greenfield/XBoard smoke test is planned or its absence is explicitly accepted. This audit only completes TASK 01.6. |
+| TASK 02 | Completed; runtime integration recorded in [runtime-smoke-test.md](runtime-smoke-test.md). |
+| TASK 02.2 | Source compatibility audit and test design recorded in [Phoenix PoCX audit](phoenix-pocx-compatibility.md); no wallet runtime round trip was performed. |
 
 ## References
 

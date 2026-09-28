@@ -1,6 +1,6 @@
 # BTCX dependency map
 
-**Scope:** source-level architectural audit only. No service was installed or exercised. Repository revisions are not pinned because the local project checkout is absent.
+**Scope:** source-level dependency architecture audit; the repository revisions are recorded in [baseline.md](baseline.md). The BTCX plugin itself was later exercised in BTCPay's isolated v2.4.4 runtime host (see [runtime-smoke-test.md](runtime-smoke-test.md)); the node/indexer options below have not been deployed or validated as a payment listener.
 
 | System | What current upstream says it does | Useful for | Not established / caution |
 |---|---|---|---|

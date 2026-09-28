@@ -121,7 +121,7 @@ The BTCPay extension point and invoice calculation behavior above were verified 
 | Rounding edge (`¥0.01 / 3`) | 0.00333334 BTCX at 8 digits, rounded upward |
 | CNY amount retention | Snapshot preserves normalized ¥7.50 |
 
-These were design-stage reference-model checks only. TASK 02 adds plugin unit tests for provider registration, settings saves, calculations, and saved quote snapshots. A full BTCPay web-server startup and actual Greenfield checkout still require an isolated runtime integration proof; see [plugin architecture](plugin-architecture.md).
+These were design-stage reference-model checks only. TASK 02 subsequently added plugin tests for provider registration, settings saves, calculations, and saved quote snapshots. TASK 02.1 then verified plugin loading, rate updates, CNY Greenfield invoice creation, checkout rendering, and immutable invoice snapshots in the pinned BTCPay test host; the checkout remains non-payable because it has no destination. See [runtime-smoke-test.md](runtime-smoke-test.md).
 
 ## Source references
 

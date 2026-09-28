@@ -83,7 +83,7 @@ dotnet build
 dotnet test
 ```
 
-The tests verify the plugin entry type and DI registration, not a full BTCPay web-server boot with the DLL loaded through `PluginManager`; nor do they verify an actual customer checkout, since the handler intentionally creates no destination. Those runtime checks require an isolated development BTCPay instance and remain necessary before enabling BTCX payments.
+TASK 02 unit tests cover the plugin entry type and DI registration. TASK 02.1 separately loaded the DLL through the real pinned BTCPay test host and verified PluginManager discovery, Greenfield invoice creation, checkout rendering and invoice snapshots. That checkout has no destination and cannot receive payment; see [runtime-smoke-test.md](runtime-smoke-test.md) for a serialization/parser finding and the remaining validation limits.
 
 ## Source references
 

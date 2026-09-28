@@ -1,15 +1,15 @@
 # Reproducible development baseline
 
-**Recorded:** 2026-09-26. Upstream sources were fetched into temporary directories under `/tmp/btcpay4btcx-*` for inspection. Those working copies are not project dependencies and are not tracked here. Each source below is pinned by commit SHA; tags/branches are labels, not floating dependency selectors.
+**Initial audit:** 2026-09-26. **Current baseline synchronized:** 2026-09-28. Upstream sources were fetched into temporary directories under `/tmp/btcpay4btcx-*` for inspection. Those working copies are not project dependencies and are not tracked here. Each source below is pinned by commit SHA; tags/branches are labels, not floating dependency selectors. Current task completion and blockers are summarized in [PROJECT-STATE.md](PROJECT-STATE.md).
 
 ## BTCPay
 
-- **Proposed target:** BTCPay Server `v2.4.1`, official Releases page's latest stable release observed during this audit; published 2026-07-23.
-- **Tag / commit:** `v2.4.1` / `03345c2886a58ea4d2f603cb6554b2e3f5d690a4`.
-- **Target framework:** `net10.0` (`Build/Common.csproj` at the target tag).
-- **SDK:** .NET 10 SDK. The checked-out tag does not contain a `global.json` pin, so no exact SDK patch version is imposed by BTCPay source. Plugin template and Monero reference both target `net10.0`; template declares plugin dependency `BTCPayServer >=2.4.0`, which includes the proposed `2.4.1` target.
-- **Decision status:** proposed for user confirmation before TASK 02. It is a release-tagged stable version, not `master`.
-- **Release evidence:** [official release v2.4.1](https://github.com/btcpayserver/btcpayserver/releases/tag/v2.4.1).
+- **Locked target:** BTCPay Server `v2.4.4`.
+- **Tag / commit:** `v2.4.4` / `2d5a0d8077bb33af080e949031da33d84b80638d`; verified by the checked-out `submodules/btcpayserver` submodule HEAD and exact tag.
+- **Target framework:** `net10.0` (`Build/Common.csproj` at the pinned commit); plugin project also targets `net10.0`.
+- **SDK:** repository `global.json` pins .NET SDK `10.0.401` with `latestPatch` roll-forward. BTCPay v2.4.4 itself has no SDK patch pin in its source; its framework target is `net10.0`. Runtime smoke report records .NET runtime `10.0.12`.
+- **Decision status:** fixed and used for TASK 02 and TASK 02.1 runtime validation; no floating `master` target.
+- **Release/source evidence:** [official release v2.4.4](https://github.com/btcpayserver/btcpayserver/releases/tag/v2.4.4), [pinned source commit](https://github.com/btcpayserver/btcpayserver/tree/2d5a0d8077bb33af080e949031da33d84b80638d).
 
 ## XBoard
 
@@ -37,11 +37,11 @@ All five are pinned by commit above for traceability. Do not substitute the curr
 
 | Repository | Branch/tag | Commit | Framework / packages | Role |
 |---|---|---|---|---|
-| [btcpayserver](https://github.com/btcpayserver/btcpayserver) | tag `v2.4.1` | `03345c2886a58ea4d2f603cb6554b2e3f5d690a4` | `net10.0`; SDK family .NET 10; no exact `global.json` patch pin | Proposed compatibility target and extension API source. |
+| [btcpayserver](https://github.com/btcpayserver/btcpayserver) | tag `v2.4.4` | `2d5a0d8077bb33af080e949031da33d84b80638d` | `net10.0`; SDK family .NET 10; upstream has no exact `global.json` patch pin | Locked target, compiled project reference, and runtime smoke host. |
 | [btcpayserver-plugin-template](https://github.com/btcpayserver/btcpayserver-plugin-template) | `master` snapshot | `ebc4d8891aa5de03cb54edceda566fe5b3110d46` | `net10.0`; plugin dependency `BTCPayServer >=2.4.0`; no direct package reference in minimal template project | Current structure/metadata/loading reference. Not itself a release-pinned BTCPay runtime. |
 | [btcpayserver-monero-plugin](https://github.com/btcpay-monero/btcpayserver-monero-plugin) | `master` snapshot, plugin version `1.3.5` | `9e284e8f26cfdd08c015348b356a32ef6ed7ddd4` | `net10.0`; notable direct runtime package `MoneroNet 1.1.0`; unit/integration tests include xunit.v3 `3.2.2`, Microsoft.NET.Test.Sdk `18.8.1`, Playwright `1.61.0` | Current external altcoin plugin reference; not a BTCX implementation or target to copy without adaptation. |
 
-Template and Monero snapshots are pinned in this document for audit reproduction. Before implementation, compare their `PluginDependency` declarations to the proposed BTCPay target and replace moving branch references with reviewed immutable SHAs/tags in any build metadata.
+Template and Monero snapshots are pinned in this document for audit reproduction. Their branch labels identify the inspected snapshots; the listed commit SHAs are the reproducible revisions. The implemented plugin declares `BTCPayServer >=2.4.4`.
 
 ## Development environment
 
@@ -55,12 +55,12 @@ Template and Monero snapshots are pinned in this document for audit reproduction
 | Docker daemon | Healthy and accessible as root; storage driver `overlayfs`, cgroup v2; service active and enabled at boot |
 | Containers | No running containers at check time |
 | Node.js / npm | Node.js v22.23.3, npm 10.9.9 |
-| .NET | SDK 10.0.401; ASP.NET Core and .NET runtimes 10.0.12; `/usr/bin/dotnet`; no `global.json` in repository |
+| .NET | SDK 10.0.401 (repository `global.json` pins `10.0.401`, `latestPatch`); ASP.NET Core and .NET runtimes 10.0.12; `/usr/bin/dotnet` |
 | Rust / native build prerequisites | Debian `rustc` and Cargo 1.85.1, `build-essential`, and `pkg-config` installed for BTCX Rust components |
 | Utilities | `curl`, `jq`, `openssl`, and Python 3 available |
 | Repository | Clean at start of TASK 01.7; no compose file or application package manifest is present yet |
 
-The host and toolchain were checked directly with the TASK 01.7 command list. Rust/Cargo and native build prerequisites were installed from Debian 13 packages during TASK 01.7. No application containers or business code were created. The VPS is prepared for source work, but no BTCPay/BTCX/XBoard stack has been deployed or runtime-tested here.
+The host and toolchain were checked directly with the TASK 01.7 command list. Rust/Cargo and native build prerequisites were installed from Debian 13 packages during TASK 01.7. TASK 02.1 subsequently ran the pinned BTCPay test host and an isolated PostgreSQL service for runtime plugin smoke tests. No persistent production stack, XBoard deployment, BTCX node, or mainnet wallet was deployed.
 
 ## Repositories
 
@@ -76,8 +76,8 @@ The host and toolchain were checked directly with the TASK 01.7 command list. Ru
 
 ## Compatibility status
 
-1. **Verified by source inspection only:** BTCPay `v2.4.1` project targets `net10.0`; current template targets `net10.0` and declares BTCPay `>=2.4.0`; Monero plugin targets `net10.0`; BTCX-specific source repositories and XBoard's specified commit were fetched and inspected at the SHAs above.
-2. **Reference only, not compatibility proof:** BTCX RPC, wallet, indexer behavior, reorg/restart recovery, plugin load on BTCPay 2.4.1, and plugin method visibility through XBoard's existing BTCPay provider. No services were run and no cross-project builds were possible.
-3. **Still requires runtime tests:** BTCX plugin loading against exact BTCPay 2.4.1, invoice payment-method selection, address/script/amount correctness, mempool and confirmation flow, reorg recovery, BTCPay webhook event mapping, XBoard HMAC callback end-to-end and negative event/amount/currency tests, and Docker deployment visibility/digests.
+1. **Runtime-verified:** BTCX plugin loads under the pinned BTCPay v2.4.4 test host; PluginManager/DI/payment method/manual contextual rate provider/settings route were discovered; CNY invoice checkout and immutable rate snapshots were exercised. Details and limits are in [runtime-smoke-test.md](runtime-smoke-test.md).
+2. **Still unverified:** address generation, BTCX URI/QR, chain payment detection, mempool/confirmation/reorg/restart handling, final settlement, Phoenix runtime round trip, and XBoard-to-BTCPay webhook end-to-end/security-negative tests.
+3. **Deployment boundary:** no persistent production stack, XBoard instance, BTCX node, or mainnet wallet was deployed. See [PROJECT-STATE.md](PROJECT-STATE.md) for current blockers and next task.
 
-No BTCX functionality has been implemented. **TASK 02 must wait for explicit confirmation of proposed BTCPay target `v2.4.1` and resolution of local .NET/Docker access.**
+The earlier v2.4.1 proposal and its “wait for TASK 02” status are superseded by the locked v2.4.4 implementation and TASK 02.1 runtime validation.
