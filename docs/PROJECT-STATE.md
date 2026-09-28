@@ -3,22 +3,22 @@
 **Synchronized:** 2026-09-28  
 **Current implementation:** MILESTONE 03 passed a gated BTCPay/PostgreSQL + BTCX regtest acceptance using real electrs-btcx against a development-only PoCX REST compatibility backport; wallet backup/restore passed. XBoard live order→Greenfield→BTCX regtest payment→confirmation→signed webhook→paid-order E2E passed in an isolated environment. Phoenix parser is **PROTOCOL COMPATIBLE**, but **REAL DEVICE E2E VERIFIED: NO** because no device/emulator runtime is available. Development validation remains incomplete on the Phoenix device gate. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
-**FINAL RELEASE PACKAGING staging E2E (2026-09-28): BLOCKED.** Staging infrastructure and electrs checks pass. A separate development store (`2VfNxGeK1aaQEVitL4TvY5HcVbaK1wK9FPxzxmUGeebm`) was created, the plugin's manual BTCX/CNY quote is enabled at `1 BTCX = 0.20 CNY`, and Greenfield API access/webhook registration worked. XBoard commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` plus the provider patch runs in an isolated staging checkout. The actual XBoard order checkout reached BTCPay Greenfield, but BTCPay rejected invoice creation because this store has no linked on-chain wallet. No invoice, real payment, confirmation, settlement webhook, or paid XBoard order was produced in this final stack validation. Do not report **STAGING RELEASE READY**. See [staging deployment](staging-deployment.md) and [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
+**FINAL RELEASE PACKAGING staging E2E (2026-09-28): PASS.** Store `2VfNxGeK1aaQEVitL4TvY5HcVbaK1wK9FPxzxmUGeebm` is configured with the BTCX-CHAIN payment method through Greenfield and uses the plugin's existing dedicated PoCX wallet RPC (`btcx-receive`, regtest). For CNY 12.34 at 0.20 CNY/BTCX, BTCPay created a 61.7 BTCX invoice, served the checkout URI/QR, and received a real 61.7 BTCX regtest transaction. The plugin listener observed it; six confirmations settled the invoice; BTCPay delivered a signed `InvoiceSettled` event (HTTP 200); and XBoard commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` marked the matching order paid. This PASS is staging/regtest only, not mainnet or production approval. See [staging deployment](staging-deployment.md) and [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
 ## Final validation status
 
 | Validation | Status | Evidence / scope |
 |---|---|---|
 | Prior isolated XBoard Live E2E | **PASS (historical)** | Earlier isolated acceptance: CNY 12.34 → 61.7 BTCX regtest → actual settlement webhook → paid order. This does not establish success in the final Compose staging deployment. |
-| Final Compose BTCX payment → XBoard E2E | **FAIL / BLOCKED** | Store `2VfNxGeK1aaQEVitL4TvY5HcVbaK1wK9FPxzxmUGeebm` and manual rate configured; XBoard checkout attempted Greenfield invoice creation. BTCPay returned “No wallet has been linked to your BTCPay Store.” No invoice/payment/webhook/order settlement. |
-| BTCX regtest in final Compose | **NOT RUN** | Could not get a BTCPay invoice/receive address because the store wallet is not linked. Earlier isolated runtime acceptance remains historical evidence only. |
-| electrs-btcx | **PASS** | Current regtest REST from node/electrs network, Electrum `server.version`, and index/node height 102 match passed. Historical address/history/UTXO/transaction/confirmation tests also passed with the documented PoCX REST compatibility backport. |
+| Final Compose BTCX payment → XBoard E2E | **PASS** | XBoard order `2026092823095172496666658` → invoice `Ck9zoSuwTrwCUUTQFvurjz`; signed `InvoiceSettled` delivery HTTP 200; matching order status `3` (paid). |
+| BTCX regtest in final Compose | **PASS** | Real 61.7 BTCX transaction `84e204e54c15b94fe847d24d13cb1c58c2d8dcb980c0d491fe73ca68a1c8314e`; plugin listener recorded it and six confirmations settled the invoice. |
+| electrs-btcx | **PASS** | Current regtest REST from node/electrs network, Electrum `server.version`, and index/node height 209 match passed. Historical address/history/UTXO/transaction/confirmation tests also passed with the documented PoCX REST compatibility backport. |
 | Phoenix protocol compatibility | **PASS** | Pinned Phoenix PoCX parser accepted the BTCX URI fixture. |
 | Phoenix real-device E2E | **PENDING** | No attached device, `adb`, Flutter runtime, Android SDK/emulator or Phoenix installable was available; QR scan/send/receive was not verified. |
 | `dotnet build` | **PASS** | 0 warnings, 0 errors. |
 | `dotnet test` | **PASS** | 106 passed, 0 failed, 1 gated runtime smoke skipped; prior isolated runtime smoke passed 107/107. |
-| RELEASE PACKAGING Compose health | **PASS** | regtest node, electrs-btcx, PostgreSQL and BTCPay healthy; plugin loaded; node REST 200 from node/electrs namespace and service DNS; Electrum indexed height 102 matched node height 102. |
-| RELEASE PACKAGING BTCX payment → XBoard E2E | **BLOCKED** | The independent XBoard staging instance and development store exist, but Greenfield invoice creation is rejected because no on-chain wallet is linked to the store. |
+| RELEASE PACKAGING Compose health | **PASS** | regtest node, electrs-btcx, PostgreSQL and BTCPay healthy; plugin loaded; node REST 200 from node/electrs namespace and service DNS; Electrum indexed height 209 matched node height 209. |
+| RELEASE PACKAGING BTCX payment → XBoard E2E | **PASS** | Greenfield BTCX-CHAIN invoice, real regtest payment, six confirmations, signed webhook, and matching paid XBoard order verified in the final stack. |
 
 ## Project goal
 

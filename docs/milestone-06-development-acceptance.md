@@ -64,7 +64,7 @@ Phoenix remains **PROTOCOL COMPATIBLE** by the pinned parser fixture, but **REAL
 - Final ordinary `dotnet restore && dotnet build --no-restore && dotnet test --no-build` passed restore/build (0 warnings/errors) and 106 tests; one runtime smoke was skipped by its default gate. The same full suite with isolated PostgreSQL, regtest node cookie and real electrs passed 107/107, 0 skipped.
 - The following final update closes XBoard exact-payment delivery/order completion, while Phoenix device scan/send/receive remains unverified. The official `.ps1` testkit was not run because `pwsh` is unavailable; shell/curl and Electrum protocol checks covered equivalent node/indexer conditions.
 
-## Final RELEASE PACKAGING staging E2E (2026-09-28) — BLOCKED
+## Initial RELEASE PACKAGING staging E2E checkpoint (2026-09-28) — BLOCKED, resolved below
 
 This is the final result for the current release Compose stack and supersedes any implication that the earlier isolated XBoard E2E validated this deployment.
 
@@ -77,3 +77,17 @@ This is the final result for the current release Compose stack and supersedes an
 - **Remaining blocker:** complete supported BTCX wallet linking/configuration for this development store without changing BTCPay core or the provider architecture, then rerun the full real payment and actual webhook flow. Do not connect BTCX mainnet or send real funds.
 
 **Release decision: STAGING RELEASE BLOCKED.**
+
+## Final staging wallet linking and E2E rerun (2026-09-28) — PASS
+
+This result supersedes the blocked decision above. The existing BTCX wallet integration was inspected before changing staging configuration:
+
+- BTCX plugin `BtcxReceiveAddressProvider` uses `IBtcxRpcClient` and server options `BTCX:RPC` / `BTCX:Wallet`. In this staging deployment they resolve to the private Compose `bitcoin-pocx` REST/RPC endpoint, cookie file `/run/btcx-rpc/.cookie`, wallet `btcx-receive`, and network `regtest`. Per invoice it uses `getaddressesbylabel` to recover an existing label or `getnewaddress` to allocate a fresh address. No store-specific xpub/watch-only registration or alternate wallet architecture exists in this plugin. The current node wallet reports `private_keys_enabled=true` and is isolated regtest.
+- The previous “No wallet has been linked” diagnostic came from BTCPay v2.4.4 `UIInvoiceController` when the store had no enabled payment-method configs. The existing plugin's valid integration point is to activate its `BTCX-CHAIN` handler on the BTCPay store. This was done through Greenfield `PUT /api/v1/stores/{storeId}/payment-methods/BTCX-CHAIN` with `enabled=true` and empty validated config. No database rows were manually inserted and no BTCPay core code was changed.
+- Store `2VfNxGeK1aaQEVitL4TvY5HcVbaK1wK9FPxzxmUGeebm` is `BTCX Development Staging`, CNY, with the existing manual rate `1 BTCX = 0.20 CNY`. BTCPay Greenfield reported BTCX-CHAIN activated.
+- Actual XBoard order `2026092823095172496666658` produced invoice `Ck9zoSuwTrwCUUTQFvurjz` through the patched staging provider. Readback confirmed `12.34 CNY`, matching `metadata.orderId`, BTCX-CHAIN only, LowSpeed, and a returned checkoutLink. Checkout displayed 61.70000000 BTCX, address `rpocx1qeaq44d8mpe29r3x3554sja9uus2ymgsrdxn8ft`, URI `btcx:rpocx1qeaq44d8mpe29r3x3554sja9uus2ymgsrdxn8ft?amount=61.7`, and a QR Vue component bound to that same URI.
+- Wallet balance was confirmed spendable on regtest; immature coinbase rewards were matured by mining only the existing local regtest. The wallet then sent exactly 61.7 BTCX in transaction `84e204e54c15b94fe847d24d13cb1c58c2d8dcb980c0d491fe73ca68a1c8314e` to the invoice address. The BTCX listener recorded it, six confirmations were observed, and BTCPay read the invoice as `Settled`, `paidAmount=12.34`.
+- BTCPay delivery history showed the actual `InvoiceSettled` webhook HTTP 200. The delivered payload matched the store and invoice IDs, `metadata.orderId`, `overPaid=false`, and `manuallyMarked=false`. XBoard's provider accepted the actual signed raw-body HMAC callback; its delivery record matched the same invoice/order, and the order ended at `status=3` (paid).
+- Final current heights matched: PoCX and Electrum both 209. Final Compose `ps` showed Bitcoin-PoCX, electrs-btcx, PostgreSQL and BTCPay healthy. The separate isolated XBoard/Redis staging containers were running. No production service, BTCX mainnet endpoint, or mainnet funds were used.
+
+**Final release staging acceptance: PASS — STAGING RELEASE READY.** This is regtest staging evidence only.
