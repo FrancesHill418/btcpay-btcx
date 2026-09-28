@@ -50,12 +50,13 @@ public sealed class RuntimeSmokeTests : UnitTestBase
         var oldElectrumTimeout = Environment.GetEnvironmentVariable("BTCX__Electrum__TimeoutSeconds");
         var oldElectrumRetries = Environment.GetEnvironmentVariable("BTCX__Electrum__MaxRetries");
         var runtimeNodeCookie = Environment.GetEnvironmentVariable("BTCX_RUNTIME_NODE_COOKIE");
+        var runtimeElectrumEndpoint = Environment.GetEnvironmentVariable("BTCX_RUNTIME_ELECTRUM_ENDPOINT");
         var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
         var pluginPath = Path.Combine(repoRoot, "src/BTCPayServer.Plugins.BTCX/bin/Debug/net10.0/BTCPayServer.Plugins.BTCX.dll");
         Assert.True(File.Exists(pluginPath), $"Build plugin first: {pluginPath}");
 
         await using var mockRpc = runtimeNodeCookie is null ? new RuntimeWalletRpcMock() : null;
-        await using var mockElectrum = runtimeNodeCookie is null ? null : new RuntimeElectrumMock();
+        await using var mockElectrum = runtimeNodeCookie is null || runtimeElectrumEndpoint is not null ? null : new RuntimeElectrumMock();
         if (mockRpc is not null)
             await mockRpc.StartAsync();
         if (mockElectrum is not null)
@@ -70,8 +71,15 @@ public sealed class RuntimeSmokeTests : UnitTestBase
         if (mockRpc is not null)
             Environment.SetEnvironmentVariable("BTCX__RPC__Endpoint", mockRpc.Endpoint);
         Environment.SetEnvironmentVariable("BTCX__Wallet__Network", "regtest");
-        Environment.SetEnvironmentVariable("BTCX__Electrum__Enabled", mockElectrum is null ? "false" : "true");
-        if (mockElectrum is not null)
+        Environment.SetEnvironmentVariable("BTCX__Electrum__Enabled", mockElectrum is not null || runtimeElectrumEndpoint is not null ? "true" : "false");
+        if (runtimeElectrumEndpoint is not null)
+        {
+            Environment.SetEnvironmentVariable("BTCX__Electrum__Endpoint", runtimeElectrumEndpoint);
+            Environment.SetEnvironmentVariable("BTCX__Electrum__PollIntervalSeconds", "2");
+            Environment.SetEnvironmentVariable("BTCX__Electrum__TimeoutSeconds", "5");
+            Environment.SetEnvironmentVariable("BTCX__Electrum__MaxRetries", "0");
+        }
+        else if (mockElectrum is not null)
         {
             Environment.SetEnvironmentVariable("BTCX__Electrum__Endpoint", mockElectrum.Endpoint);
             Environment.SetEnvironmentVariable("BTCX__Electrum__PollIntervalSeconds", "2");
@@ -179,7 +187,7 @@ public sealed class RuntimeSmokeTests : UnitTestBase
             Assert.Equal(btcxPaymentMethodId, retrievedMethod.PaymentMethodId);
             Assert.Equal(BtcxAddressType.WitnessV0, BtcxAddress.Parse(retrievedMethod.Destination, BtcxNetworkId.Regtest).Type);
             Assert.StartsWith("btcx:", retrievedMethod.PaymentLink, StringComparison.Ordinal);
-            if (runtimeNodeCookie is not null && mockElectrum is not null)
+            if (runtimeNodeCookie is not null && (mockElectrum is not null || runtimeElectrumEndpoint is not null))
                 await ExerciseRegtestPaymentAsync(client, invoiceA.Id, retrievedMethod.Destination, runtimeNodeCookie, mockElectrum);
             var entityA = await tester.PayTester.InvoiceRepository.GetInvoice(invoiceA.Id);
             var promptA = Assert.Single(entityA.GetPaymentPrompts());
@@ -246,11 +254,11 @@ public sealed class RuntimeSmokeTests : UnitTestBase
         string invoiceId,
         string destination,
         string cookiePath,
-        RuntimeElectrumMock electrum)
+        RuntimeElectrumMock? electrum)
     {
         var initialHeight = (await CallNodeRpcAsync(cookiePath, null, "getblockcount", [])).GetInt32();
         var txId = (await CallNodeRpcAsync(cookiePath, "btcx-miner", "sendtoaddress", [destination, 37.5m])).GetString()!;
-        electrum.SetHistory(txId, 0);
+        electrum?.SetHistory(txId, 0);
 
         BTCPayServer.Client.Models.InvoiceData? invoice = null;
         await RetryUntilAsync(async () =>
@@ -270,7 +278,7 @@ public sealed class RuntimeSmokeTests : UnitTestBase
             await CallNodeRpcAsync(cookiePath, null, "setmocktime", [header.GetProperty("time").GetInt64() + 121]);
             await CallNodeRpcAsync(cookiePath, null, "generatetoaddress", [1, "rpocx1qlkmnuy53wmmj5wmfct868pq4mhjxv5kshk650y", 1_000_000]);
         }
-        electrum.SetHistory(txId, initialHeight + 1);
+        electrum?.SetHistory(txId, initialHeight + 1);
 
         await RetryUntilAsync(async () =>
         {
@@ -284,14 +292,14 @@ public sealed class RuntimeSmokeTests : UnitTestBase
         var transaction = await CallNodeRpcAsync(cookiePath, null, "getrawtransaction", [txId, 1]);
         var containingBlock = transaction.GetProperty("blockhash").GetString()!;
         await CallNodeRpcAsync(cookiePath, null, "invalidateblock", [containingBlock]);
-        electrum.SetHistory(txId, 0);
+        electrum?.SetHistory(txId, 0);
         await RetryUntilAsync(async () =>
         {
             invoice = await client.GetInvoice(invoiceId, includePaymentMethods: true, token: TestContext.Current.CancellationToken);
             return invoice.PaymentMethods.Single().Payments?.Single().Status == BTCPayServer.Client.Models.InvoicePaymentMethodDataModel.Payment.PaymentStatus.Processing;
         }, "The real regtest reorg did not reverse the settled BTCX payment to processing.");
         await CallNodeRpcAsync(cookiePath, null, "reconsiderblock", [containingBlock]);
-        electrum.SetHistory(txId, initialHeight + 1);
+        electrum?.SetHistory(txId, initialHeight + 1);
         await RetryUntilAsync(async () =>
         {
             invoice = await client.GetInvoice(invoiceId, includePaymentMethods: true, token: TestContext.Current.CancellationToken);
