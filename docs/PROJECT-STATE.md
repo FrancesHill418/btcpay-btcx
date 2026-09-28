@@ -1,7 +1,7 @@
 # Project state
 
 **Synchronized:** 2026-09-28  
-**Current implementation:** TASK 03.6 source-based URI/QR integration follows commit `0e9a54e`; use `git log -1` for the current commit.
+**Current implementation:** MILESTONE 03 plugin flow passed gated BTCPay/PostgreSQL + BTCX regtest acceptance, wallet backup/restore passed, and the XBoard provider patch passes isolated tests. Real electrs indexing and cross-application XBoard E2E remain blocked/outstanding. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
 ## Project goal
 
@@ -18,10 +18,10 @@ XBoard CNY order
           → electrs-btcx script-history discovery and BTCPay payment persistence
             → BTCPay SpeedPolicy confirmations with canonical reorg recovery
             → Phoenix `btcx:` payment URI and QR
-              → (future) XBoard webhook fulfillment
+              → XBoard Greenfield provider + invoice-bound HMAC webhook validation
 ```
 
-XBoard's selected provider is its existing BTCPay Greenfield provider at the pinned commit below. BTCPay owns invoice lifecycle and checkout. The plugin registers `BTCX-OnChain`, a contextual manual rate provider, settings UI, immutable quote snapshot, BTCX network/address/amount primitives, private authenticated PoCX RPC, dedicated-wallet receiving address allocation, Electrs discovery, payment persistence, confirmation/reorg state mapping and Phoenix-compatible URI/QR. Live regtest and XBoard fulfillment have not yet been validated; do not accept customer payments.
+XBoard's selected provider is its existing BTCPay Greenfield provider at the pinned commit below; its provider-only implementation patch is preserved under `integrations/xboard`. BTCPay owns invoice lifecycle and checkout. The plugin registers `BTCX-OnChain`, a contextual manual rate provider, settings UI, immutable quote snapshot, BTCX network/address/amount primitives, private authenticated PoCX RPC, dedicated-wallet receiving address allocation, Electrum history discovery, payment persistence, confirmation/reorg state mapping and Phoenix-compatible URI/QR. The gated runtime smoke exercised the real regtest node, wallet RPC and BTCPay payment state machine, but used an Electrum protocol fixture because pinned electrs-btcx cannot start against this node's missing `/rest/blockpart` endpoint. XBoard provider tests pass, but live cross-application E2E remains unverified; do not accept customer payments.
 
 ## Locked versions and source revisions
 
@@ -30,12 +30,12 @@ XBoard's selected provider is its existing BTCPay Greenfield provider at the pin
 | BTCPay Server | `v2.4.4`, commit `2d5a0d8077bb33af080e949031da33d84b80638d` | Verified exact submodule tag and HEAD; target framework `net10.0`. |
 | .NET SDK | `10.0.401`, `latestPatch` roll-forward | Repository `global.json`; runtime smoke host reported .NET runtime `10.0.12`. |
 | XBoard | commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` | Greenfield provider source revision. |
-| `bitcoin-pocx` | `005bf0098e217b76a2627bfae458dff4f5718dd5` | Node/consensus reference; no node integrated. |
+| `bitcoin-pocx` | `005bf0098e217b76a2627bfae458dff4f5718dd5` | Isolated regtest node/wallet used for runtime smoke; node is not integrated into BTCPay. |
 | `btcx` | `v0.1.1`, commit `6907bacb132324e460cbe55d3765b4350bb56e61` | BTCX Rust wallet stack reference; not linked into plugin. |
 | `bindex-btcx` | commit `eda7c70660baa06affef464c7ea1e131c39304f1` | Indexer reference; not integrated. |
 | `electrs-btcx` | `v0.11.1-btcx.1`, commit `2f78c63e20215e20944767f0901209c4d740fe5b` | Electrum indexer reference; not integrated. |
 | `esplora-pocx` | commit `2b7e1c8a5d2dde2d688974e5bdaf604d223283c8` | REST indexer reference; not integrated. |
-| Phoenix PoCX | `v2.4.0`, commit `bc4713306c9c2cd3cbf989a3e355e0705b485218` | Source audit only; no Phoenix wallet round trip. |
+| Phoenix PoCX | `v2.4.0`, commit `bc4713306c9c2cd3cbf989a3e355e0705b485218` | Pinned parser fixture executed; no device/QR/wallet round trip. |
 
 More detailed baseline/environment records: [baseline.md](baseline.md). The historical v2.4.1 proposal in the original baseline has been superseded by the locked and runtime-tested v2.4.4 revision.
 
@@ -52,15 +52,17 @@ More detailed baseline/environment records: [baseline.md](baseline.md). The hist
 - TASK 02.1 — isolated BTCPay runtime plugin load/Greenfield checkout smoke test.
 - TASK 02.2 — Phoenix PoCX source compatibility audit and test design.
 - TASK 03.1 — BTCX network, address/script and atomic amount primitives; 50/50 tests at completion.
-- TASK 03.2 — PoCX RPC client; mock RPC tests and network-only queries. Commit `79e4d5f`.
-- TASK 03.3 — dedicated node-wallet receive address allocation; mock JSON-RPC covered, no live wallet connected.
-- TASK 03.0 — rate timestamp legacy serializer compatibility; unit covered, live Greenfield retrieval retest pending. Commit `5ea990c`.
-- TASK 03.4 — Electrs/bindex script-history discovery and idempotent BTCPay payment sink. Commit `6f706c4`; mock covered only.
-- TASK 03.5 — canonical confirmation state mapping and reorg/dropped-output reconciliation. In progress; policy follows pinned BTCPay v2.4.4 SpeedPolicy.
-- TASK 03.6 — Phoenix-compatible `btcx:` URI and standard checkout QR. Implemented and unit/source verified; live Phoenix/regtest scan pending.
-- TASK 03.7 — completed BTCX payment method flow: manual rate snapshot → atomic amount → unique receive address → URI/QR → idempotent output payments → SpeedPolicy confirmation/reorg state. Mock/unit verified; live regtest pending.
+- TASK 03.2 — PoCX RPC client; mock tests plus gated loopback regtest host validation. Commit `79e4d5f`.
+- TASK 03.3 — dedicated node-wallet receive address allocation; gated smoke allocated a real regtest receive address through BTCX wallet RPC.
+- TASK 03.0 — rate timestamp legacy serializer compatibility; unit and Greenfield `includePaymentMethods` runtime retrieval covered. Commit `5ea990c`.
+- TASK 03.4 — Electrs/bindex history discovery and idempotent payment sink implemented. Real electrs startup attempted; blocked because pinned bindex requires `/rest/blockpart`, which the current PoCX node returns 404 for.
+- TASK 03.5 — confirmation/reorg reconciliation. Gated smoke verified 6-confirmation settlement, Processing after block invalidation, and resettlement after reconsideration.
+- TASK 03.6 — Phoenix-compatible `btcx:` URI/checkout QR. Plugin URI vectors and Phoenix v2.4.0 parser fixture pass; no device/QR scan E2E.
+- TASK 03.7 — complete BTCX payment flow. Real regtest wallet RPC, BTCPay invoice/payment persistence, confirmation and reorg transitions passed; history came from a fixture, not electrs.
+- MILESTONE 04 — XBoard provider patch binds CNY invoices to BTCX-only order terms and validates signed settlement callbacks. Pinned tests pass 6 tests / 26 assertions; live XBoard/BTCPay E2E remains unverified.
+- MILESTONE 05 — source security review and runtime checks documented in [security-final.md](security-final.md); development wallet recovery passed, while production receiving-key and indexer boundaries remain gates.
 
-TASK 02.1 reports 29/29 ordinary tests and 30/30 runtime smoke test cases passed, with 0 build warnings and 0 errors. This does not mean BTCX can receive or settle a payment.
+`dotnet restore` and `dotnet build` pass (0 warnings/errors). Ordinary `dotnet test` passes 106/107 with the gated runtime test skipped; full gated `dotnet test` passes 107/107 with `BTCPAY_RUNTIME_SMOKE=1` and an isolated local node cookie. It loaded BTCPay v2.4.4 over isolated PostgreSQL, created/retrieved BTCX CNY invoices, rendered checkout, allocated a real BTCX regtest wallet address, sent an exact 37.5 BTCX transaction, persisted it through the listener, settled at six confirmations, and reversed/resettled payment state through invalidate/reconsider. Electrum history still came from a protocol fixture. Wallet backup/restore recovered all 9 labels and 5 wallet transactions. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).
 
 ## Manual BTCX/CNY rate
 
@@ -70,29 +72,26 @@ First release does not use an exchange or Observatory market quote. The administ
 
 Source audit is pinned to PoC-Consortium/phoenix-pocx `v2.4.0` above. Phoenix accepts `btcx:`, `pocx:`, legacy `bitcoin:`, and bare PoCX addresses as input; its canonical output scheme is `btcx:`. Its amounts are whole BTCX with 8 decimal places (`1 BTCX = 100,000,000` atomic units). BTCPay should emit invariant fixed-point amount text (e.g. `0.00000001`, not exponent notation) and a QR of the canonical `btcx:` URI. Network HRPs/prefixes are PoCX-specific and the send UI checks against its active network.
 
-This establishes source-level URI/address/amount compatibility only. A mock-generated BTCX address is checked by the plugin's BTCX parser, but no Phoenix wallet runtime transfer or QR scan/send round trip has been executed. Full results and test design: [phoenix-pocx-compatibility.md](phoenix-pocx-compatibility.md).
+The pinned Phoenix `parsePaymentUri` was executed from source against the BTCPay BTCX regtest URI fixture; 37.5 BTCX, one atomic unit and rejection of a Bitcoin-address URI passed. **PROTOCOL COMPATIBLE** is confirmed. **REAL DEVICE E2E VERIFIED** is not: no Phoenix device/runtime, QR camera scan, or wallet send/receive round trip ran. Full results and test design: [phoenix-pocx-compatibility.md](phoenix-pocx-compatibility.md).
 
-## Current unimplemented functionality
+## Remaining development and release gates
 
-- Verify real isolated regtest node/wallet startup, backup/restore and end-to-end allocation; current address provider is covered by mock RPC only.
-- Verify address, fixed-decimal payment URI, and QR on a live isolated BTCPay checkout and Phoenix regtest wallet.
-- Verify an isolated regtest Electrs/node/wallet payment flow and BTCPay PostgreSQL idempotency; current listener is mock tested only.
-- Verify canonical confirmation thresholds, mempool eviction and reorg reversal in live regtest/BTCPay persistence.
-- Verify an actual Phoenix PoCX receive/send round trip against generated plugin instructions.
-- Complete XBoard-to-BTCPay webhook delivery and negative security-path integration tests.
-- Harden XBoard provider behavior for event type, invoice state/identity, amount/currency/payment method/expiry/confirmation policy, and replay/idempotency before production fulfillment. The XBoard production source has not been modified.
+- Make pinned electrs-btcx compatible with this PoCX node REST API (or replace the single production discovery backend after separate review); verify indexed history, UTXO and restart recovery.
+- Run XBoard + Greenfield + BTCPay callback/order completion in a live isolated deployment; current XBoard tests use Laravel HTTP fakes and SQLite.
+- Run Phoenix PoCX on a device/runtime to scan the generated checkout QR and send a regtest transaction.
+- Exercise wallet recovery across BTCPay/node process restarts and define encrypted/offline production backup handling.
+- Decide the production receiving-key boundary, an approved BTCX/CNY price source, and merchant compensation for deep reorgs after fulfillment.
 
 ## Current blockers
 
-1. **Not payable:** Payment URI/QR and confirmation/reorg state mapping are implemented, but no live regtest payment has exercised BTCPay persistence. Do not use the current plugin for customer payments.
-2. **Greenfield runtime retest pending:** a BTCX-scoped converter now reads the previously observed integer `rateTimestamp` and emits canonical UTC ISO strings. The isolated Greenfield `includePaymentMethods` runtime smoke still needs to be rerun; BTCPay core remains unchanged.
-3. **No live regtest integration:** RPC/wallet calls have only mock tests; no BTCX node, wallet, or indexer has been started or connected. Mainnet must remain out of scope.
-4. **XBoard webhook trust checks incomplete:** source audit found the current provider does not enforce the full event/invoice/amount/currency/method/expiry/idempotency policy required for fulfillment; end-to-end callback tests remain outstanding.
-5. **Phoenix evidence is source-only:** generated fixed-point URI vectors match the pinned parser contract, but QR scanning and a real Phoenix regtest wallet transaction remain untested.
+1. **Indexer compatibility:** electrs-btcx 0.11.1/bindex-btcx `eda7c706` exits at startup with HTTP 404 for `/rest/blockpart/<genesis>.bin?offset=0&size=491`; see MILESTONE 06. No second production listener or RPC fallback was added.
+2. **XBoard end-to-end acceptance:** provider behavior and negative security paths are isolated-test verified; live Greenfield webhook delivery and order completion remain unverified.
+3. **Phoenix device validation:** pinned parser fixture passes, but no real device, QR scan, or wallet send/receive round trip ran.
+4. **Production controls:** node wallet RPC has spend-capable authority; production requires a reviewed receiving-key design, encrypted/offline recovery, approved BTCX/CNY pricing, TLS/secret rotation and reorg policy. Do not enable customer payments based only on these development tests.
 
 ## Next stage
 
-**MILESTONE 03 implementation stages 03.1–03.7 are complete; live development acceptance remains. Next is MILESTONE 04 — XBoard end-to-end integration.** Continue with source/runtime evidence and retain all production boundaries.
+**MILESTONE 03 plugin acceptance passed with an Electrum fixture; pinned electrs compatibility is an explicit blocker. MILESTONE 04 provider implementation/tests pass, while live cross-application E2E remains open. Security review is recorded; proceed only to manual review and targeted follow-up, not deployment or mainnet.**
 
 ## Core/source boundary
 
