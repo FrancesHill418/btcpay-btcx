@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    BTCPay Server 2.4.4 pins SourceLink 8.0.0 in its upstream projects. That
+    package graph resolves a vulnerable build-only Microsoft.Build.Tasks.Git
+    8.0.0. Keep this external build-tool override in this plugin repository;
+    do not patch the BTCPay submodule source.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'BTCPayServer.Abstractions' Or '$(MSBuildProjectName)' == 'BTCPayServer.Client'">
+    <PackageReference Include="Microsoft.Build.Tasks.Git" Version="10.0.303" PrivateAssets="All" />
+  </ItemGroup>
+</Project>

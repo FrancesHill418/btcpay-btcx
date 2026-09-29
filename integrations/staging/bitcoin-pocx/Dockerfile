@@ -14,8 +14,8 @@ RUN git init bitcoin-pocx \
     && git -C bitcoin-pocx checkout --detach FETCH_HEAD \
     && git -C bitcoin-pocx submodule update --init --depth 1 bitcoin \
     && test "$(git -C bitcoin-pocx/bitcoin rev-parse HEAD)" = "${BTCX_CORE_COMMIT}"
-COPY integrations/electrs-btcx/bitcoin-pocx-v30-blockpart-compat.patch /tmp/blockpart-compat.patch
-COPY integrations/electrs-btcx/bitcoin-pocx-v30-net-processing-compat.patch /tmp/net-processing-compat.patch
+COPY patches/electrs-pocx-rest/bitcoin-pocx-v30-blockpart-compat.patch /tmp/blockpart-compat.patch
+COPY patches/electrs-pocx-rest/bitcoin-pocx-v30-net-processing-compat.patch /tmp/net-processing-compat.patch
 RUN git -C /src/bitcoin-pocx/bitcoin apply --check /tmp/blockpart-compat.patch \
     && git -C /src/bitcoin-pocx/bitcoin apply /tmp/blockpart-compat.patch \
     && git -C /src/bitcoin-pocx/bitcoin apply --check /tmp/net-processing-compat.patch \

@@ -25,6 +25,8 @@ RUN git init bindex-btcx \
     && git -C electrs-btcx remote add origin https://github.com/PoC-Consortium/electrs-btcx.git \
     && git -C electrs-btcx fetch --depth 1 origin "${ELECTRS_COMMIT}" \
     && git -C electrs-btcx checkout --detach FETCH_HEAD \
+    && test "${BINDEX_COMMIT}" = eda7c70660baa06affef464c7ea1e131c39304f1 \
+    && test "${ELECTRS_COMMIT}" = 2f78c63e20215e20944767f0901209c4d740fe5b \
     && test -f electrs-btcx/Cargo.lock \
     && grep -F 'bindex = { path = "../bindex-btcx/bindex-lib"' electrs-btcx/Cargo.toml
 ENV ROCKSDB_INCLUDE_DIR=/usr/include
@@ -34,6 +36,10 @@ RUN cd /build/electrs-btcx && cargo build --release --locked
 FROM ${DEBIAN_RUNTIME_IMAGE}
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DEBIAN_SNAPSHOT=20260928T000000Z
+ARG BTCX_BUILD_COMMIT=unknown
+LABEL org.opencontainers.image.source="https://github.com/FrancesHill418/btcpay-btcx" \
+      org.opencontainers.image.revision="${BTCX_BUILD_COMMIT}" \
+      org.opencontainers.image.version="electrs-2f78c63e20215e20944767f0901209c4d740fe5b-bindex-eda7c70660baa06affef464c7ea1e131c39304f1"
 RUN sed -i -E \
        -e "s#https?://deb.debian.org/debian-security/?#http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT}/#g" \
        -e "s#https?://security.debian.org/debian-security/?#http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT}/#g" \

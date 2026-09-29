@@ -3,7 +3,10 @@ ARG BTCPAY_BASE_IMAGE=btcpayserver/btcpayserver:2.4.4@sha256:c264aa08cd32a469bd3
 FROM ${DOTNET_SDK_IMAGE} AS plugin-build
 WORKDIR /src
 COPY . .
-RUN dotnet restore src/BTCPayServer.Plugins.BTCX/BTCPayServer.Plugins.BTCX.csproj \
+RUN for project in BTCPayServer.Abstractions BTCPayServer.Client BTCPayServer.Common BTCPayServer.Data BTCPayServer.Rating BTCPayServer BTCPayServer.Tests; do \
+      cp "locks/dotnet/btcpayserver/${project}.packages.lock.json" "submodules/btcpayserver/${project}/packages.lock.json"; \
+    done \
+    && dotnet restore src/BTCPayServer.Plugins.BTCX/BTCPayServer.Plugins.BTCX.csproj --locked-mode \
     && dotnet publish src/BTCPayServer.Plugins.BTCX/BTCPayServer.Plugins.BTCX.csproj \
        -c Release --no-restore -o /out
 

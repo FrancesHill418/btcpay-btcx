@@ -6,6 +6,7 @@
     <Product>BTCX</Product>
     <Description>BTCX on-chain payments for BTCPay Server with manual BTCX/CNY pricing.</Description>
     <Version>0.1.0</Version>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
     <PreserveCompilationContext>false</PreserveCompilationContext>

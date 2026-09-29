@@ -1,0 +1,12 @@
+/.env
+/.env.*
+!/.env.example
+/secrets/
+/backups/
+*.secret
+*.password
+*.token
+*.key
+*.pem
+*.p12
+*.pfx

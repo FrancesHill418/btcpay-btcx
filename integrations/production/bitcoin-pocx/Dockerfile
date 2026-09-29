@@ -10,8 +10,8 @@ ARG BTCX_NODE_COMMIT=005bf0098e217b76a2627bfae458dff4f5718dd5
 ARG BTCX_CORE_COMMIT=b88b852644f629cd5f25b3424d11b462462c24b3
 ARG BUILD_JOBS=2
 RUN sed -i -E "s#https?://(archive|security).ubuntu.com/ubuntu/?#http://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/#g" /etc/apt/sources.list.d/ubuntu.sources \
-    && apt-get -o Acquire::Check-Valid-Until=false -o Acquire::https::Verify-Peer=false update \
-    && apt-get -o Acquire::https::Verify-Peer=false install -y --no-install-recommends ca-certificates \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends \
@@ -24,14 +24,17 @@ RUN git init bitcoin-pocx \
     && git -C bitcoin-pocx fetch --depth 1 origin "${BTCX_NODE_COMMIT}" \
     && git -C bitcoin-pocx checkout --detach FETCH_HEAD \
     && git -C bitcoin-pocx submodule update --init --depth 1 bitcoin \
-    && test "$(git -C bitcoin-pocx/bitcoin rev-parse HEAD)" = "${BTCX_CORE_COMMIT}"
-COPY integrations/production/bitcoin-pocx/bitcoin-pocx-v30-blockpart-compat.patch /tmp/blockpart-compat.patch
-COPY integrations/production/bitcoin-pocx/bitcoin-pocx-v30-net-processing-compat.patch /tmp/net-processing-compat.patch
+    && test "${BTCX_NODE_COMMIT}" = 005bf0098e217b76a2627bfae458dff4f5718dd5 \
+    && test "$(git -C bitcoin-pocx/bitcoin rev-parse HEAD)" = "${BTCX_CORE_COMMIT}" \
+    && test "${BTCX_CORE_COMMIT}" = b88b852644f629cd5f25b3424d11b462462c24b3
+COPY patches/electrs-pocx-rest/bitcoin-pocx-v30-blockpart-compat.patch /tmp/blockpart-compat.patch
+COPY patches/electrs-pocx-rest/bitcoin-pocx-v30-net-processing-compat.patch /tmp/net-processing-compat.patch
 RUN git -C /src/bitcoin-pocx/bitcoin apply --check /tmp/blockpart-compat.patch \
     && git -C /src/bitcoin-pocx/bitcoin apply /tmp/blockpart-compat.patch \
     && git -C /src/bitcoin-pocx/bitcoin apply --check /tmp/net-processing-compat.patch \
     && git -C /src/bitcoin-pocx/bitcoin apply /tmp/net-processing-compat.patch \
-    && sha256sum /tmp/blockpart-compat.patch /tmp/net-processing-compat.patch
+    && echo '9dc06e76a641996fc7831b02f9ba27e39405e926b2a544962070495e2cb1ae21  /tmp/blockpart-compat.patch' | sha256sum -c - \
+    && echo 'bf6e17148c4dc3a7397f310418915a2ccb027c1e4c4f3eff4bbdc60e784055cb  /tmp/net-processing-compat.patch' | sha256sum -c -
 RUN cmake -S /src/bitcoin-pocx/bitcoin -B /src/bitcoin-pocx/bitcoin/build \
       -DENABLE_POCX=ON -DBUILD_GUI=OFF -DBUILD_TESTS=OFF -DWITH_ZMQ=OFF -DENABLE_IPC=OFF \
     && case "${BUILD_JOBS}" in ''|*[!0-9]*) echo "BUILD_JOBS must be a positive integer" >&2; exit 2;; esac \
@@ -41,9 +44,13 @@ RUN cmake -S /src/bitcoin-pocx/bitcoin -B /src/bitcoin-pocx/bitcoin/build \
 FROM ${UBUNTU_RUNTIME_IMAGE}
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT=20260928T000000Z
+ARG BTCX_BUILD_COMMIT=unknown
+LABEL org.opencontainers.image.source="https://github.com/FrancesHill418/btcpay-btcx" \
+      org.opencontainers.image.revision="${BTCX_BUILD_COMMIT}" \
+      org.opencontainers.image.version="bitcoin-pocx-005bf0098e217b76a2627bfae458dff4f5718dd5"
 RUN sed -i -E "s#https?://(archive|security).ubuntu.com/ubuntu/?#http://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/#g" /etc/apt/sources.list.d/ubuntu.sources \
-    && apt-get -o Acquire::Check-Valid-Until=false -o Acquire::https::Verify-Peer=false update \
-    && apt-get -o Acquire::https::Verify-Peer=false install -y --no-install-recommends ca-certificates \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends \

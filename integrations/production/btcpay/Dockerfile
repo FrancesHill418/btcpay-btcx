@@ -4,10 +4,14 @@ ARG BTCPAY_BASE_IMAGE=btcpayserver/btcpayserver:2.4.4@sha256:c264aa08cd32a469bd3
 FROM ${BTCPAY_BASE_IMAGE}
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_SNAPSHOT=20260928T000000Z
+ARG BTCX_BUILD_COMMIT=unknown
+LABEL org.opencontainers.image.source="https://github.com/FrancesHill418/btcpay-btcx" \
+      org.opencontainers.image.revision="${BTCX_BUILD_COMMIT}" \
+      org.opencontainers.image.version="btcpayserver-v2.4.4-btcx"
 USER root
 RUN sed -i -E "s#https?://(archive|security).ubuntu.com/ubuntu/?#http://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/#g" /etc/apt/sources.list.d/ubuntu.sources \
-    && apt-get -o Acquire::Check-Valid-Until=false -o Acquire::https::Verify-Peer=false update \
-    && apt-get -o Acquire::https::Verify-Peer=false install -y --no-install-recommends ca-certificates \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends curl \

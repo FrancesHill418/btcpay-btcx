@@ -1,0 +1,154 @@
+name: btcpay-btcx-production
+
+# Production runtime, separated from the root regtest/staging Compose files.
+# All image references must be supplied as registry/name:version@sha256:digest.
+# BTCX mainnet wallet operations remain disabled unless explicitly changed in
+# a separately approved future operation.
+services:
+  postgres:
+    image: btcpayserver/postgres:18.6@sha256:4f9632f312190f6fcd580bb71f463637c6eab6f1fc548a3c6460c9c934deafca
+    restart: unless-stopped
+    shm_size: 256mb
+    command: ["-c", "random_page_cost=1.0", "-c", "shared_preload_libraries=pg_stat_statements"]
+    volumes:
+      - postgres_datadir:/var/lib/postgresql
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/btcx_postgres_password
+    secrets:
+      - btcx_postgres_password
+    networks:
+      - btcx_database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d btcpayserver${NBITCOIN_NETWORK:-mainnet}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  bitcoin-pocx:
+    image: ${BTCX_NODE_IMAGE:?Set reviewed Bitcoin-PoCX image@sha256:digest}
+    restart: unless-stopped
+    environment:
+      BTCX_RPC_ALLOWIP: ${BTCX_BACKEND_SUBNET:?Set an approved private, non-overlapping Docker subnet}
+      BTCX_NETWORK: ${BTCX_NETWORK:-main}
+      BTCX_RPC_PORT: ${BTCX_RPC_PORT:-8332}
+      BTCX_P2P_PORT: ${BTCX_P2P_PORT:-8333}
+    volumes:
+      - btcx_node_data:/data
+      - btcx_rpc_cookie:/run/btcx-rpc
+      - btcx_electrs_rpc:/run/btcx-electrs-rpc
+    networks:
+      - btcx_backend
+      - btcx_p2p
+    expose:
+      - "${BTCX_RPC_PORT:-8332}"
+      - "${BTCX_P2P_PORT:-8333}"
+      - "${BTCX_ELECTRUM_PORT:-50001}"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 12
+      start_period: 2m
+    stop_grace_period: 2m
+
+  electrs-btcx:
+    image: ${BTCX_ELECTRS_IMAGE:?Set reviewed electrs-btcx image@sha256:digest}
+    restart: unless-stopped
+    command:
+      - --network=${BTCX_ELECTRS_NETWORK:-bitcoin}
+      - --daemon-rpc-addr=127.0.0.1:${BTCX_RPC_PORT:-8332}
+      - --electrum-rpc-addr=0.0.0.0:${BTCX_ELECTRUM_PORT:-50001}
+      - --cookie-file=/run/btcx-electrs-rpc/.cookie
+      - --db-dir=/data/electrs
+    volumes:
+      - btcx_electrs_data:/data
+      - btcx_electrs_rpc:/run/btcx-electrs-rpc:ro
+    network_mode: service:bitcoin-pocx
+    depends_on:
+      bitcoin-pocx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "/usr/local/bin/electrs-healthcheck.py", "127.0.0.1", "${BTCX_ELECTRUM_PORT:-50001}"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
+      start_period: 2m
+    stop_grace_period: 1m
+
+  btcpayserver:
+    image: ${BTCPAY_IMAGE:?Set reviewed BTCPay Server v2.4.4 wrapper image@sha256:digest}
+    restart: unless-stopped
+    expose:
+      - "49392"
+    environment:
+      BTCPAY_POSTGRES: User ID=postgres;Host=postgres;Port=5432;Application Name=btcpayserver;Database=btcpayserver${NBITCOIN_NETWORK:-mainnet}
+      BTCPAY_NETWORK: ${NBITCOIN_NETWORK:-mainnet}
+      BTCPAY_BIND: 0.0.0.0:49392
+      BTCPAY_ROOTPATH: /
+      BTCPAY_DEBUGLOG: btcpay.log
+      # This is BTCPay's admin update-notification metadata source. It does not
+      # pull or install a server image; deployed image refs above stay digest-pinned.
+      BTCPAY_UPDATEURL: https://api.github.com/repos/btcpayserver/btcpayserver/releases/latest
+      BTCPAY_DOCKERDEPLOYMENT: "true"
+      BTCPAY_NODEFAULTCHAIN: "true"
+      BTCX__RPC__Endpoint: http://bitcoin-pocx:${BTCX_RPC_PORT:-8332}/
+      BTCX__RPC__CookieFilePath: /run/btcx-rpc/.cookie
+      BTCX__Wallet__WalletName: ${BTCX_WALLET_NAME:-btcx-production-receive}
+      BTCX__Wallet__Network: ${BTCX_WALLET_NETWORK:-main}
+      BTCX__Wallet__AllowMainnet: ${BTCX_ALLOW_MAINNET:-false}
+      BTCX__Electrum__Enabled: "true"
+      BTCX__Electrum__Endpoint: tcp://bitcoin-pocx:${BTCX_ELECTRUM_PORT:-50001}/
+      BTCX__Electrum__PollIntervalSeconds: ${BTCX_ELECTRUM_POLL_SECONDS:-15}
+    volumes:
+      - btcpay_datadir:/datadir
+      - btcpay_pluginsdir:/root/.btcpayserver/Plugins
+      - btcx_rpc_cookie:/run/btcx-rpc:ro
+    secrets:
+      - btcx_postgres_password
+    networks:
+      - default
+      - btcx_backend
+      - btcx_database
+      - btcx_ingress
+    depends_on:
+      postgres:
+        condition: service_healthy
+      bitcoin-pocx:
+        condition: service_healthy
+      electrs-btcx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/49392; printf 'GET /api/v1/health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3; head -n 1 <&3 | grep -q ' 200 '"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
+      start_period: 2m
+
+volumes:
+  postgres_datadir:
+  btcpay_datadir:
+  btcpay_pluginsdir:
+  btcx_node_data:
+  btcx_rpc_cookie:
+  btcx_electrs_rpc:
+  btcx_electrs_data:
+
+networks:
+  default: {}
+  btcx_backend:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${BTCX_BACKEND_SUBNET:?Set an approved private, non-overlapping Docker subnet}
+  btcx_p2p:
+    internal: false
+  btcx_database:
+    internal: true
+  btcx_ingress:
+    external: true
+    name: ${BTCPAY_INGRESS_NETWORK:?Connect the approved HTTPS ingress to this pre-created network}
+
+secrets:
+  btcx_postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:?Set the protected PostgreSQL password file path}

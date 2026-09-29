@@ -209,6 +209,20 @@ final class BtcpayBtcxPluginTest extends TestCase
         \Illuminate\Support\Facades\DB::table('btcpay_webhook_deliveries')->insert(['delivery_id' => 'legacy-delivery']);
 
         $migration = require __DIR__ . '/../database/migrations/2026_09_29_000000_create_btcpay_btcx_tables.php';
+        $migration->up();
+        $migration->up();
+
+        self::assertTrue(Schema::hasTable('btcpay_btcx_invoice_bindings'));
+        self::assertTrue(Schema::hasTable('btcpay_btcx_webhook_registrations'));
+        self::assertTrue(Schema::hasTable('btcpay_btcx_webhook_deliveries'));
+        self::assertContains(
+            ['trade_no'],
+            array_values(array_map(
+                static fn (array $index): array => $index['columns'],
+                array_filter(Schema::getIndexes('btcpay_btcx_invoice_bindings'), static fn (array $index): bool => $index['unique'])
+            ))
+        );
+
         $migration->down();
 
         self::assertTrue(Schema::hasTable('btcpay_invoice_bindings'));
