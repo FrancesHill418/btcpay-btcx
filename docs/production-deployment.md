@@ -67,7 +67,7 @@ Start from [`integrations/production/.env.example`](../integrations/production/.
 Required production secret material:
 
 * PostgreSQL password: generated and mounted to PostgreSQL using the selected official BTCPay deployment secret mechanism;
-* Bitcoin-PoCX RPC cookie: created by the daemon at runtime in the private shared cookie volume and mounted read-only into BTCPay/electrs; it is not a static password in Git;
+* Bitcoin-PoCX RPC cookie: created by the daemon at runtime in a private volume and mounted read-only into BTCPay for the plugin's wallet RPC. electrs receives a separate runtime-generated `rpcauth` user with a per-user method whitelist and a distinct credential volume; the cookie is not mounted into electrs and no password is stored in Git;
 * BTCPay Greenfield token: scoped to the production store, mounted as a read-only file into XBoard;
 * XBoard webhook HMAC secret: independently generated and mounted as a different read-only file into XBoard;
 * BTCPay key material persisted in its protected datadir/secret manager per the selected BTCPay deployment process. It is not injected by the BTCX fragment as a literal environment value.

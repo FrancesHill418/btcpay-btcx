@@ -29,7 +29,7 @@ RUN cmake -S /src/bitcoin-pocx/bitcoin -B /src/bitcoin-pocx/bitcoin/build \
 FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates gosu libboost-filesystem1.83.0 libboost-system1.83.0 \
+    ca-certificates gosu openssl python3 libboost-filesystem1.83.0 libboost-system1.83.0 \
     libevent-2.1-7t64 libevent-core-2.1-7t64 libevent-extra-2.1-7t64 \
     libevent-pthreads-2.1-7t64 libsqlite3-0 libminiupnpc17 libnatpmp1t64 \
     && rm -rf /var/lib/apt/lists/* \

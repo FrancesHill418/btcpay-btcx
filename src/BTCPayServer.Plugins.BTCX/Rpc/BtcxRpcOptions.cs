@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Options;
 
 namespace BTCPayServer.Plugins.BTCX.Rpc;
@@ -15,7 +16,9 @@ public sealed class BtcxRpcOptions
     public int MaxRetries { get; set; } = 2;
     public int RetryDelayMilliseconds { get; set; } = 100;
 
-    public Uri Validate()
+    public Uri Validate() => Validate(Dns.GetHostAddresses);
+
+    internal Uri Validate(Func<string, IPAddress[]> resolveHostname)
     {
         if (!Uri.TryCreate(Endpoint, UriKind.Absolute, out var endpoint) ||
             (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps) ||
@@ -41,9 +44,19 @@ public sealed class BtcxRpcOptions
                 ["Configure either cookie authentication or username/password, not both."]);
         }
 
-        if (IPAddress.TryParse(endpoint.Host, out var ip) && !BtcxPrivateEndpoint.IsPrivateOrLoopback(ip))
+        IPAddress[] addresses;
+        try
+        {
+            addresses = IPAddress.TryParse(endpoint.Host, out var ip) ? [ip] : resolveHostname(endpoint.DnsSafeHost);
+        }
+        catch (SocketException)
+        {
             throw new OptionsValidationException(nameof(BtcxRpcOptions), typeof(BtcxRpcOptions),
-                ["RPC endpoint must resolve to a loopback or private-network address; public RPC endpoints are rejected."]);
+                ["RPC endpoint hostname could not be resolved to a loopback or private-network address."]);
+        }
+        if (addresses.Length == 0 || addresses.Any(address => !BtcxPrivateEndpoint.IsPrivateOrLoopback(address)))
+            throw new OptionsValidationException(nameof(BtcxRpcOptions), typeof(BtcxRpcOptions),
+                ["Every RPC endpoint address must resolve to a loopback or private-network address; public RPC endpoints are rejected."]);
 
         return endpoint;
     }
@@ -55,7 +68,7 @@ internal static class BtcxPrivateEndpoint
     {
         if (address.IsIPv4MappedToIPv6)
             return IsPrivateOrLoopback(address.MapToIPv4());
-        if (IPAddress.IsLoopback(address) || address.IsIPv6LinkLocal)
+        if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.IPv6Loopback) || address.IsIPv6LinkLocal)
             return true;
 
         var bytes = address.GetAddressBytes();

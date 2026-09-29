@@ -2,7 +2,7 @@
   "Identifier": "BTCPayServer.Plugins.BTCX",
   "Name": "BTCX",
   "Version": "0.1.0",
-  "Description": "BTCX on-chain payments for BTCPay Server with administrator-managed CNY pricing.",
+  "Description": "BTCX on-chain payments for BTCPay Server with manual BTCX/CNY pricing.",
   "SystemPlugin": false,
   "Dependencies": [
     {

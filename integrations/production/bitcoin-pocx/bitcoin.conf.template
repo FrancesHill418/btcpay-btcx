@@ -7,7 +7,12 @@ txindex=1
 listen=1
 rpcport=__RPC_PORT__
 rpcbind=0.0.0.0:__RPC_PORT__
+rpcallowip=127.0.0.1
 rpcallowip=__RPC_ALLOWIP__
 rpccookiefile=/run/btcx-rpc/.cookie
+# electrs uses a separate rpcauth identity restricted to its node/index APIs.
+rpcauth=electrs:__ELECTRS_RPC_AUTH__
+rpcwhitelistdefault=0
+rpcwhitelist=electrs:getblockchaininfo,getblock,getrawtransaction,estimatesmartfee,getnetworkinfo,sendrawtransaction,submitpackage,getmempoolinfo,getrawmempool,getmempoolentry
 port=__P2P_PORT__
 printtoconsole=1

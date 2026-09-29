@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Product>BTCX</Product>
-    <Description>BTCX on-chain payments for BTCPay Server with administrator-managed CNY pricing.</Description>
+    <Description>BTCX on-chain payments for BTCPay Server with manual BTCX/CNY pricing.</Description>
     <Version>0.1.0</Version>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
@@ -19,6 +19,7 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="BTCPayServer.Plugins.BTCX.Tests" />
     <ProjectReference Include="../../submodules/btcpayserver/BTCPayServer/BTCPayServer.csproj" />
     <EmbeddedResource Include="btcx.svg" />
     <None Update="BTCPayServer.Plugins.BTCX.json">

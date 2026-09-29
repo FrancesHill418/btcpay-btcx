@@ -12,6 +12,7 @@ public sealed class BtcxElectrumOptions
     public int PollIntervalSeconds { get; set; } = 15;
     public int TimeoutSeconds { get; set; } = 10;
     public int MaxRetries { get; set; } = 2;
+    public int ReorgSafetyWindowHours { get; set; } = 72;
 
     public Uri Validate()
     {
@@ -20,7 +21,8 @@ public sealed class BtcxElectrumOptions
             endpoint.UserInfo.Length != 0 || endpoint.Query.Length != 0 || endpoint.Fragment.Length != 0 ||
             endpoint.AbsolutePath is not "/" and not "")
             throw new OptionsValidationException(nameof(BtcxElectrumOptions), typeof(BtcxElectrumOptions), ["Endpoint must be a tcp:// host:port without credentials or path."]);
-        if (PollIntervalSeconds is < 2 or > 3600 || TimeoutSeconds is < 1 or > 300 || MaxRetries is < 0 or > 5)
+        if (PollIntervalSeconds is < 2 or > 3600 || TimeoutSeconds is < 1 or > 300 || MaxRetries is < 0 or > 5 ||
+            ReorgSafetyWindowHours is < 1 or > 720)
             throw new OptionsValidationException(nameof(BtcxElectrumOptions), typeof(BtcxElectrumOptions), ["Electrum polling/timeout/retry options are outside supported bounds."]);
         if (IPAddress.TryParse(endpoint.Host, out var ip) && !BtcxPrivateEndpoint.IsPrivateOrLoopback(ip))
             throw new OptionsValidationException(nameof(BtcxElectrumOptions), typeof(BtcxElectrumOptions), ["Electrum endpoint must be loopback or private; public endpoints are rejected."]);

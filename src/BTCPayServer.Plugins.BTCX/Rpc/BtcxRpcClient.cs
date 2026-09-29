@@ -340,7 +340,10 @@ public static class BtcxRpcHttpHandler
             throw new HttpRequestException("BTCX node RPC host could not be resolved.");
         }
 
-        foreach (var address in addresses.Where(BtcxPrivateEndpoint.IsPrivateOrLoopback))
+        if (addresses.Length == 0 || addresses.Any(address => !BtcxPrivateEndpoint.IsPrivateOrLoopback(address)))
+            throw new HttpRequestException("BTCX node RPC connections to non-private addresses are rejected.");
+
+        foreach (var address in addresses)
         {
             var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             try

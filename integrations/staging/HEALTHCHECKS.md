@@ -21,6 +21,8 @@ Expected health gates:
 
 The node `/rest` APIs and RPC use the same internal listener. RPC, REST, P2P and Electrum are not published to the host. `btcx-staging-backend` is an internal Docker network. PostgreSQL has no host port mapping.
 
+BTCPay and `wallet-init` use the node cookie. electrs receives a separate `rpcauth` credential whose JSON-RPC methods are limited to its pinned indexer/broadcast calls; it does not receive the wallet cookie or wallet RPC methods. `rpcwhitelistdefault=0` preserves the cookie-authenticated BTCPay identity's full wallet RPC access. The listener scans BTCPay-monitored active invoices, including invoices with an in-flight payment after expiry, plus settlements recorded in the default 72-hour reorg safety window. Older settled BTCX invoices leave the polling set; restart recovery reloads recent settlement events from BTCPay's invoice event log.
+
 In the current Compose topology, `electrs-btcx` sets `network_mode: service:bitcoin-pocx` because pinned bindex-btcx calls node REST at localhost. Therefore its `127.0.0.1:60401` healthcheck is the Electrum listener in the shared network namespace, and `127.0.0.1:18443` from electrs reaches Bitcoin-PoCX. The Compose DNS name `bitcoin-pocx` resolves to the same node from BTCPay and was also verified from electrs. Do not replace these localhost targets with a different service name unless the network topology and bindex REST target are changed together.
 
 ## Chain, wallet, and index readiness

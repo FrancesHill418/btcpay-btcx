@@ -101,6 +101,21 @@ public sealed class BtcxRpcClientTests
     }
 
     [Fact]
+    public void Rpc_hostname_must_resolve_only_to_private_addresses()
+    {
+        var options = new BtcxRpcOptions
+        {
+            Endpoint = "http://localhost:8332/",
+            Username = "rpcuser",
+            Password = "secret"
+        };
+        Assert.Equal("localhost", options.Validate(_ => [IPAddress.IPv6Loopback, IPAddress.Loopback]).Host);
+        Assert.Throws<OptionsValidationException>(() => options.Validate(_ => [IPAddress.Loopback, IPAddress.Parse("203.0.113.10")]));
+        Assert.Throws<OptionsValidationException>(() => options.Validate(_ => [IPAddress.Parse("203.0.113.10")]));
+        Assert.Throws<OptionsValidationException>(() => options.Validate(_ => []));
+    }
+
+    [Fact]
     public async Task Getblockcount_returns_validated_chain_height()
     {
         Assert.Equal(0, await CreateClient(JsonHandler("0")).GetBlockCountAsync(TestContext.Current.CancellationToken));

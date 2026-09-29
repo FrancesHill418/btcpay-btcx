@@ -47,7 +47,7 @@ RUN sed -i -E "s#https?://(archive|security).ubuntu.com/ubuntu/?#http://snapshot
     && rm -rf /var/lib/apt/lists/* \
     && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends \
-       curl gosu libboost-filesystem1.83.0 libboost-system1.83.0 \
+       curl gosu openssl python3 libboost-filesystem1.83.0 libboost-system1.83.0 \
        libevent-2.1-7t64 libevent-core-2.1-7t64 libevent-extra-2.1-7t64 \
        libevent-pthreads-2.1-7t64 libsqlite3-0 libminiupnpc17 libnatpmp1t64 \
     && rm -rf /var/lib/apt/lists/* \

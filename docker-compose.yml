@@ -30,6 +30,7 @@ services:
     volumes:
       - btcx_node_data:/data
       - btcx_rpc_cookie:/run/btcx-rpc
+      - btcx_electrs_rpc:/run/btcx-electrs-rpc
     networks:
       btcx_backend:
         aliases:
@@ -61,11 +62,11 @@ services:
       - --network=regtest
       - --daemon-rpc-addr=127.0.0.1:18443
       - --electrum-rpc-addr=0.0.0.0:60401
-      - --cookie-file=/run/btcx-rpc/.cookie
+      - --cookie-file=/run/btcx-electrs-rpc/.cookie
       - --db-dir=/data/electrs
     volumes:
       - btcx_electrs_data:/data
-      - btcx_rpc_cookie:/run/btcx-rpc:ro
+      - btcx_electrs_rpc:/run/btcx-electrs-rpc:ro
     # bindex-btcx currently uses http://localhost:<regtest RPC port> for
     # Bitcoin REST. Sharing the node's isolated network namespace keeps that
     # upstream behavior working without exposing REST/RPC outside this stack.
@@ -139,6 +140,7 @@ volumes:
   btcpay_data:
   btcx_node_data:
   btcx_electrs_data:
+  btcx_electrs_rpc:
   btcx_rpc_cookie:
   postgres_data:
 

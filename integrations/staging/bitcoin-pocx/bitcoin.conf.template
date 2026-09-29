@@ -3,9 +3,13 @@ server=1
 rest=1
 txindex=1
 fallbackfee=0.0002
+rpcauth=electrs:__ELECTRS_RPC_AUTH__
+rpcwhitelistdefault=0
+rpcwhitelist=electrs:getblockchaininfo,getblock,getrawtransaction,estimatesmartfee,getnetworkinfo,sendrawtransaction,submitpackage,getmempoolinfo,getrawmempool,getmempoolentry
 
 [regtest]
 rpcbind=0.0.0.0
+rpcallowip=127.0.0.1
 rpcallowip=__RPC_ALLOWIP__
 rpccookiefile=/run/btcx-rpc/.cookie
 port=18444

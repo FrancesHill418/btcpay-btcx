@@ -1,10 +1,10 @@
-using System.Collections.Concurrent;
 using BTCPayServer.Data;
 using BTCPayServer.Payments;
 using BTCPayServer.Plugins.BTCX.Payments;
 using BTCPayServer.Plugins.BTCX.Rpc;
 using BTCPayServer.Plugins.BTCX.Wallet;
 using BTCPayServer.Services.Invoices;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,8 +15,8 @@ using Newtonsoft.Json;
 namespace BTCPayServer.Plugins.BTCX.Discovery;
 
 /// <summary>
-/// Polls electrs-btcx for script history. Electrs is the only discovery source;
-/// its results are reconciled against the PoCX node before payment persistence.
+/// Polls electrs-btcx for script history. It scans BTCPay's active invoices
+/// plus invoices with a recent BTCX settlement event for reorg recovery.
 /// </summary>
 public sealed class BtcxPaymentListener(
     InvoiceRepository invoiceRepository,
@@ -29,8 +29,24 @@ public sealed class BtcxPaymentListener(
     ILogger<BtcxPaymentListener> logger) : BackgroundService
 {
     private const int InvoiceBatchSize = 250;
-    private readonly ConcurrentDictionary<string, InvoiceEntity> _trackedInvoices = new(StringComparer.Ordinal);
-    private bool _addressCatalogLoaded;
+    private const string RecentSettlementQuery = """
+        SELECT ai."InvoiceDataId" AS "InvoiceId",
+               GREATEST(MAX(p."Created"), COALESCE(MAX(e."Timestamp") FILTER (
+                   WHERE e."Message" LIKE '% new event: invoice_paymentSettled (1014)'), '-infinity'::timestamptz)) AS "LastSeen"
+        FROM "AddressInvoices" ai
+        JOIN "Payments" p ON p."InvoiceDataId" = ai."InvoiceDataId"
+                         AND p."PaymentMethodId" = ai."PaymentMethodId"
+        LEFT JOIN "InvoiceEvents" e ON e."InvoiceDataId" = ai."InvoiceDataId"
+        WHERE ai."PaymentMethodId" = @PaymentMethodId
+          AND p."Status" IN ('Settled', 'Unaccounted')
+        GROUP BY ai."InvoiceDataId"
+        HAVING MAX(p."Created") >= @Cutoff OR
+               MAX(e."Timestamp") FILTER (
+                   WHERE e."Message" LIKE '% new event: invoice_paymentSettled (1014)') >= @Cutoff
+        """;
+
+    private readonly Dictionary<string, RecentInvoice> _recentSettledInvoices = new(StringComparer.Ordinal);
+    private bool _recentSettlementsLoaded;
     private readonly PaymentMethodId _paymentMethodId = paymentMethodHandler.PaymentMethodId;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -50,7 +66,6 @@ public sealed class BtcxPaymentListener(
                 }
                 catch (Exception ex)
                 {
-                    // Exception bodies from endpoints, config and remote peers are not logged.
                     logger.LogWarning("BTCX payment scan failed ({FailureType}); it will retry after the configured interval.", ex.GetType().Name);
                 }
             }
@@ -72,22 +87,37 @@ public sealed class BtcxPaymentListener(
 
         var rpcClient = rpcClientFactory();
         await rpcClient.VerifyNetworkAsync(wallet.Network, cancellationToken).ConfigureAwait(false);
-        await LoadTrackedInvoicesAsync(cancellationToken).ConfigureAwait(false);
+        await LoadRecentSettledInvoicesAsync(options.ReorgSafetyWindowHours, cancellationToken).ConfigureAwait(false);
 
         var activeInvoices = await invoiceRepository.GetMonitoredInvoices(_paymentMethodId, includeNonActivated: true, cancellationToken)
             .ConfigureAwait(false);
-        foreach (var invoice in activeInvoices)
-            _trackedInvoices[invoice.Id] = invoice;
+        var invoicesToReconcile = activeInvoices.ToDictionary(invoice => invoice.Id, StringComparer.Ordinal);
+        foreach (var recent in _recentSettledInvoices.Values)
+            invoicesToReconcile.TryAdd(recent.Invoice.Id, recent.Invoice);
+
+        foreach (var id in _recentSettledInvoices.Where(pair => !BtcxInvoiceTrackingPolicy.ShouldPoll(
+                     isActive: false, pair.Value.LastSeen, DateTimeOffset.UtcNow, TimeSpan.FromHours(options.ReorgSafetyWindowHours)))
+                 .Select(pair => pair.Key).ToArray())
+            _recentSettledInvoices.Remove(id);
 
         var reconciler = new BtcxPaymentReconciler(historyClient, rpcClient, paymentSink);
-        foreach (var invoice in _trackedInvoices.Values.OrderBy(value => value.Id, StringComparer.Ordinal))
+        foreach (var invoice in invoicesToReconcile.Values.OrderBy(value => value.Id, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!TryGetReceiveScript(invoice, wallet.Network, out var script))
                 continue;
             try
             {
+                var wasSettled = IsSettledBtcxInvoice(invoice);
                 await reconciler.ReconcileInvoiceAsync(invoice.Id, wallet.Network, script, cancellationToken).ConfigureAwait(false);
+                var current = await invoiceRepository.GetInvoice(invoice.Id).ConfigureAwait(false);
+                if (IsSettledBtcxInvoice(current))
+                {
+                    var lastSeen = wasSettled && _recentSettledInvoices.TryGetValue(invoice.Id, out var existing)
+                        ? existing.LastSeen
+                        : DateTimeOffset.UtcNow;
+                    _recentSettledInvoices[invoice.Id] = new RecentInvoice(current, lastSeen);
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -105,19 +135,23 @@ public sealed class BtcxPaymentListener(
         }
     }
 
-    private async Task LoadTrackedInvoicesAsync(CancellationToken cancellationToken)
+    private async Task LoadRecentSettledInvoicesAsync(int windowHours, CancellationToken cancellationToken)
     {
-        if (_addressCatalogLoaded)
+        if (_recentSettlementsLoaded)
             return;
 
         string[] ids;
+        Dictionary<string, DateTimeOffset> lastSeen;
         using (var context = invoiceRepository.DbContextFactory.CreateContext())
         {
-            ids = await context.AddressInvoices.AsNoTracking()
-                .Where(address => address.PaymentMethodId == _paymentMethodId.ToString())
-                .Select(address => address.InvoiceDataId)
-                .Distinct()
-                .ToArrayAsync(cancellationToken).ConfigureAwait(false);
+            var rows = await context.Database.GetDbConnection().QueryAsync<(string InvoiceId, DateTimeOffset LastSeen)>(
+                new CommandDefinition(RecentSettlementQuery, new
+                {
+                    PaymentMethodId = _paymentMethodId.ToString(),
+                    Cutoff = DateTimeOffset.UtcNow.AddHours(-windowHours)
+                }, cancellationToken: cancellationToken)).ConfigureAwait(false);
+            lastSeen = rows.ToDictionary(row => row.InvoiceId, row => row.LastSeen, StringComparer.Ordinal);
+            ids = lastSeen.Keys.ToArray();
         }
 
         for (var offset = 0; offset < ids.Length; offset += InvoiceBatchSize)
@@ -128,10 +162,14 @@ public sealed class BtcxPaymentListener(
             var invoices = await invoiceRepository.GetInvoices(batch).ConfigureAwait(false);
 #pragma warning restore CS0618
             foreach (var invoice in invoices)
-                _trackedInvoices[invoice.Id] = invoice;
+                _recentSettledInvoices[invoice.Id] = new RecentInvoice(invoice, lastSeen[invoice.Id]);
         }
-        _addressCatalogLoaded = true;
+        _recentSettlementsLoaded = true;
     }
+
+    private bool IsSettledBtcxInvoice(InvoiceEntity invoice) => invoice is not null &&
+        invoice.GetPayments(false).Any(payment => payment.PaymentMethodId == _paymentMethodId &&
+                                                  payment.Status == PaymentStatus.Settled);
 
     private bool TryGetReceiveScript(InvoiceEntity invoice, BtcxNetworkId expectedNetwork, out Script script)
     {
@@ -160,4 +198,12 @@ public sealed class BtcxPaymentListener(
             return false;
         }
     }
+
+    private sealed record RecentInvoice(InvoiceEntity Invoice, DateTimeOffset LastSeen);
+}
+
+public static class BtcxInvoiceTrackingPolicy
+{
+    public static bool ShouldPoll(bool isActive, DateTimeOffset? lastSeen, DateTimeOffset now, TimeSpan reorgSafetyWindow) =>
+        isActive || (lastSeen is not null && lastSeen.Value >= now - reorgSafetyWindow);
 }

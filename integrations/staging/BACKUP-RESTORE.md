@@ -11,6 +11,7 @@ This guide covers the Compose staging volumes only. It is not a production disas
 | `btcx_node_data` | BTCX regtest chain and `btcx-receive` wallet | node `backupwallet`; chain data can be re-synced |
 | `btcx_electrs_data` | bindex/electrs index state | archive or rebuild from compatible regtest chain |
 | `btcx_rpc_cookie` | ephemeral RPC authentication cookie only | do not back up; node regenerates it on restart |
+| `btcx_electrs_rpc` | generated restricted electrs RPC credential and `rpcauth` salt/hash | keep private; it is separate from the BTCPay wallet cookie and may be regenerated only together with the node's matching config |
 
 Docker volumes are not backups. Keep XBoard database backups in the XBoard operator's separate recovery process, and make the XBoard/BTCPay database backup times consistent when preserving a complete order/invoice link.
 
@@ -44,7 +45,7 @@ docker cp "$(docker compose ps -q bitcoin-pocx):/tmp/btcx-receive-wallet.dat" \
 docker compose exec bitcoin-pocx rm -f /tmp/btcx-receive-wallet.dat
 ```
 
-Optionally stop the stack and archive the persistent data volumes using a trusted volume backup tool. For a consistent full data snapshot, stop BTCPay, electrs, and the node before snapshotting all relevant volumes. Keep the plugin/image source revision, Docker image IDs/digests, and checksums next to the encrypted backup. Do not archive or copy `btcx_rpc_cookie`; it is ephemeral authentication state.
+Optionally stop the stack and archive the persistent data volumes using a trusted volume backup tool. For a consistent full data snapshot, stop BTCPay, electrs, and the node before snapshotting all relevant volumes. Keep the plugin/image source revision, Docker image IDs/digests, and checksums next to the encrypted backup. Do not archive or copy `btcx_rpc_cookie`; it is ephemeral authentication state. Treat `btcx_electrs_rpc` as a secret volume; it contains only electrs's whitelisted RPC identity and does not authorize wallet RPC methods.
 
 Restart services after completing the backup:
 

@@ -10,6 +10,7 @@ services:
     volumes:
       - btcx_node_data:/data
       - btcx_rpc_cookie:/run/btcx-rpc
+      - btcx_electrs_rpc:/run/btcx-electrs-rpc
     networks:
       - btcx_backend
       - btcx_p2p
@@ -32,11 +33,11 @@ services:
       - --network=${BTCX_ELECTRS_NETWORK:-bitcoin}
       - --daemon-rpc-addr=127.0.0.1:${BTCX_RPC_PORT:-8332}
       - --electrum-rpc-addr=0.0.0.0:${BTCX_ELECTRUM_PORT:-50001}
-      - --cookie-file=/run/btcx-rpc/.cookie
+      - --cookie-file=/run/btcx-electrs-rpc/.cookie
       - --db-dir=/data/electrs
     volumes:
       - btcx_electrs_data:/data
-      - btcx_rpc_cookie:/run/btcx-rpc:ro
+      - btcx_electrs_rpc:/run/btcx-electrs-rpc:ro
     network_mode: service:bitcoin-pocx
     depends_on:
       bitcoin-pocx:
@@ -98,6 +99,7 @@ services:
 volumes:
   btcx_node_data:
   btcx_rpc_cookie:
+  btcx_electrs_rpc:
   btcx_electrs_data:
 
 networks:
