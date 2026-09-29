@@ -1,0 +1,126 @@
+services:
+  bitcoin-pocx:
+    image: ${BTCX_NODE_IMAGE:?Set BTCX_NODE_IMAGE to a published tag@sha256 digest}
+    restart: unless-stopped
+    environment:
+      BTCX_RPC_ALLOWIP: ${BTCX_BACKEND_SUBNET:?Set a private non-overlapping Docker subnet}
+      BTCX_NETWORK: ${BTCX_NETWORK:-main}
+      BTCX_RPC_PORT: ${BTCX_RPC_PORT:-8332}
+      BTCX_P2P_PORT: ${BTCX_P2P_PORT:-8333}
+    volumes:
+      - btcx_node_data:/data
+      - btcx_rpc_cookie:/run/btcx-rpc
+    networks:
+      - btcx_backend
+      - btcx_p2p
+    expose:
+      - "${BTCX_RPC_PORT:-8332}"
+      - "${BTCX_P2P_PORT:-8333}"
+      - "${BTCX_ELECTRUM_PORT:-50001}"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 12
+      start_period: 2m
+    stop_grace_period: 2m
+
+  electrs-btcx:
+    image: ${BTCX_ELECTRS_IMAGE:?Set BTCX_ELECTRS_IMAGE to a published tag@sha256 digest}
+    restart: unless-stopped
+    command:
+      - --network=${BTCX_ELECTRS_NETWORK:-bitcoin}
+      - --daemon-rpc-addr=127.0.0.1:${BTCX_RPC_PORT:-8332}
+      - --electrum-rpc-addr=0.0.0.0:${BTCX_ELECTRUM_PORT:-50001}
+      - --cookie-file=/run/btcx-rpc/.cookie
+      - --db-dir=/data/electrs
+    volumes:
+      - btcx_electrs_data:/data
+      - btcx_rpc_cookie:/run/btcx-rpc:ro
+    network_mode: service:bitcoin-pocx
+    depends_on:
+      bitcoin-pocx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "/usr/local/bin/electrs-healthcheck.py", "127.0.0.1", "${BTCX_ELECTRUM_PORT:-50001}"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
+      start_period: 2m
+    stop_grace_period: 1m
+
+  btcpayserver:
+    environment:
+      BTCX__RPC__Endpoint: http://bitcoin-pocx:${BTCX_RPC_PORT:-8332}/
+      BTCX__RPC__CookieFilePath: /run/btcx-rpc/.cookie
+      BTCX__Wallet__WalletName: ${BTCX_WALLET_NAME:-btcx-production-receive}
+      BTCX__Wallet__Network: ${BTCX_WALLET_NETWORK:-main}
+      BTCX__Wallet__AllowMainnet: ${BTCX_ALLOW_MAINNET:-false}
+      BTCX__Electrum__Enabled: "true"
+      BTCX__Electrum__Endpoint: tcp://bitcoin-pocx:${BTCX_ELECTRUM_PORT:-50001}/
+      BTCX__Electrum__PollIntervalSeconds: ${BTCX_ELECTRUM_POLL_SECONDS:-15}
+    secrets:
+      - btcx_postgres_password
+    volumes:
+      - btcx_rpc_cookie:/run/btcx-rpc:ro
+    networks:
+      - default
+      - btcx_backend
+      - btcx_database
+    depends_on:
+      postgres:
+        condition: service_healthy
+      bitcoin-pocx:
+        condition: service_healthy
+      electrs-btcx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/49392; printf 'GET /api/v1/health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3; head -n 1 <&3 | grep -q ' 200 '"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
+      start_period: 2m
+
+  postgres:
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/btcx_postgres_password
+    secrets:
+      - btcx_postgres_password
+    networks:
+      - btcx_database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d btcpayserver${NBITCOIN_NETWORK:-mainnet}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+volumes:
+  btcx_node_data:
+  btcx_rpc_cookie:
+  btcx_electrs_data:
+
+networks:
+  default: {}
+  btcx_backend:
+    name: ${BTCX_BACKEND_NETWORK:-btcpay-btcx-private}
+    internal: true
+    ipam:
+      config:
+      - subnet: ${BTCX_BACKEND_SUBNET:?Set a private non-overlapping Docker subnet}
+  btcx_p2p:
+    name: ${BTCX_P2P_NETWORK:-btcpay-btcx-p2p}
+    # This isolated from the host only by Docker bridge policy; outbound peer
+    # traffic must be allowed for initial sync and ongoing chain updates.
+    internal: false
+  btcx_database:
+    name: ${BTCX_DATABASE_NETWORK:-btcpay-btcx-database}
+    internal: true
+
+secrets:
+  btcx_postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:?Set POSTGRES_PASSWORD_FILE to the protected deployment secret file}
+
+required:
+  - postgres
+  - btcpayserver

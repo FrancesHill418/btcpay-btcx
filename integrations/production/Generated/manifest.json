@@ -1,0 +1,15 @@
+{
+  "requiredRoutes": [],
+  "optionalRoutes": [],
+  "fragments": [
+    "btcpayserver",
+    "btcpayserver-nginx",
+    "btcx",
+    "nginx",
+    "nginx-https",
+    "postgres"
+  ],
+  "secrets": [
+    "${POSTGRES_PASSWORD_FILE:?Set POSTGRES_PASSWORD_FILE to the protected deployment secret file}"
+  ]
+}

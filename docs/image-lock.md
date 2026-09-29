@@ -23,7 +23,17 @@ BTCX core/wallet source `PoC-Consortium/btcx` at `v0.1.1`, commit `6907bacb13232
 | BTCPay plugin builder | `mcr.microsoft.com/dotnet/sdk:10.0.401` | `sha256:35d40304542c8689331f8cab17c65926cdf48fe711e289321d71924b230a7d29` | .NET SDK `10.0.401` |
 | BTCPay runtime base | `btcpayserver/btcpayserver:2.4.4` | `sha256:c264aa08cd32a469bd30d41978b73dc8bb2de1503ce67bdb0ab8fd5d934fb614` | BTCPay Server `v2.4.4`, commit `2d5a0d8077bb33af080e949031da33d84b80638d` |
 
-These references are pinned as `tag@sha256:digest` in the staging Dockerfiles. `docker image inspect` confirmed the locally cached manifest/image identifiers; registry manifest inspection confirmed the public base OCI index digests. No production image has been built, published or approved.
+These references are pinned as `tag@sha256:digest` in the candidate Dockerfiles. Public base OCI index digests were independently inspected. The electrs candidate was built locally on 2026-09-29 from its pinned sources and snapshot; its local BuildKit manifest/config ID is not a published registry manifest and is not valid for deployment. The Bitcoin-PoCX image build was started but cancelled during the slow native toolchain package installation before source compilation. The BTCPay wrapper candidate image was not built. No production image has been published or approved.
+
+## RC2 package build attempt
+
+| Candidate | Proposed tag | Local image digest / registry digest | Source and build lock | Result |
+|---|---|---|---|---|
+| `btcx-electrs` | `0.1.0-rc2` | Local BuildKit manifest `sha256:05a51565e7f2ceaf69f98fca92c13f7413cb7e49c6cae58e86acbb01af5e429a`; published registry digest: **not available** | electrs-btcx `2f78c63e20215e20944767f0901209c4d740fe5b`; bindex-btcx `eda7c70660baa06affef464c7ea1e131c39304f1`; Debian Trixie/Trixie-slim pinned OCI digests above; signed Debian snapshot `20260928T000000Z`; `Cargo.lock` with `cargo build --release --locked` | **Local build PASS**, binary reports `v0.11.1`; image was not run against a node or published |
+| `btcx-btcpayserver` | `0.1.0-rc2` | Local BuildKit manifest `sha256:8dc32d9e106f5bf4843eed327f841a78dd2d436c35d93a9dff18b704b63e8aac`; published registry digest: **not available** | BTCPay v2.4.4 base OCI digest above; Ubuntu snapshot `20260928T000000Z` | **Local build PASS**; derived wrapper only; not run as a service or published |
+| `btcx-bitcoin-pocx` | `0.1.0-rc2` | Not built; registry digest: **not available** | Bitcoin-PoCX `005bf0098e217b76a2627bfae458dff4f5718dd5`; Bitcoin Core `b88b852644f629cd5f25b3424d11b462462c24b3`; Ubuntu 24.04 pinned OCI digest above; signed Ubuntu snapshot `20260928T000000Z`; patches below | **Build incomplete**; package/toolchain installation was cancelled before source compilation |
+
+The Ubuntu base has no CA bundle. Its Dockerfiles bootstrap `ca-certificates` with APT TLS peer verification disabled for that first download only; APT still validates the signed Ubuntu `InRelease` metadata against the keyring shipped in the pinned base. Subsequent APT operations use normal TLS verification. This bootstrap behavior requires security review before production approval.
 
 ## Patch lock
 
@@ -37,7 +47,9 @@ Apply in filename order in a clean source checkout at that exact commit; check h
 
 ## Lock gaps and staging image caveat
 
-1. `global.json` now disallows SDK roll-forward. Dockerfiles still run `apt-get update` against live distribution repositories and install unversioned packages; NuGet transitive packages are not locked in a committed plugin lock file. Base images are immutable, but OS/package dependency resolution and reproducible builds remain release blockers.
-2. Custom images are local-only. Publish reviewed artifacts to an approved private registry and record registry manifest digest, platform digest, SBOM, provenance and signature before any promotion.
+1. `global.json` disallows SDK roll-forward. The candidate Dockerfiles now use pinned base-image digests and dated signed Ubuntu/Debian snapshots; package version manifests are not separately checked in. Plugin publish uses the pinned BTCPay v2.4.4 submodule and SDK 10.0.401. The Bitcoin-PoCX candidate build has not completed, and no custom image has been pushed or independently reproduced; build and publication remain release blockers.
+2. Custom images are local-only. Electrs and the thin BTCPay wrapper built locally; the node image did not complete. Publish reviewed artifacts to an approved private registry and record registry manifest digest, platform digest, SBOM, provenance and signature before any promotion.
 3. At lock capture, `docker image inspect bitcoin-pocx:development-regtest` returned image ID `e849...`, while the already-running staging container image ID was `e63db88573ae3a674440af008db61d3608f35c994fab921558d3005076de2895`. The container was left running. Its original image source/commit cannot be inferred from the current local tag; this drift must be reconciled without replacing the active staging container.
 4. Dependency versions/source commits do not constitute a production security review. Mainnet code-path review, wallet custody, XBoard secret mount behavior, Phoenix device E2E and production DR gates remain open.
+
+The generated stack also contains BTCPay-generator helper images such as `btcpayserver/postgres:18.6`, `nginx:1.31.6-trixie`, `btcpayserver/docker-gen:0.10.7` and `btcpayserver/letsencrypt-nginx-proxy-companion:2.2.9-2`. They carry version tags but are not digest-pinned in the committed generated snapshot. Resolve these to inspected immutable references in the maintained deployment overlay and regenerate before any production use. The generated file's `example.invalid` application image references intentionally prevent it from being deployed as-is.

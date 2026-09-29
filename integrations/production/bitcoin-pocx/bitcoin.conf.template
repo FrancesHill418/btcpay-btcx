@@ -1,0 +1,13 @@
+# Chain and ports are selected at container startup. Mainnet is the default.
+# Never put RPC passwords/private keys here.
+__CHAIN_CONFIG__
+server=1
+rest=1
+txindex=1
+listen=1
+rpcport=__RPC_PORT__
+rpcbind=0.0.0.0:__RPC_PORT__
+rpcallowip=__RPC_ALLOWIP__
+rpccookiefile=/run/btcx-rpc/.cookie
+port=__P2P_PORT__
+printtoconsole=1

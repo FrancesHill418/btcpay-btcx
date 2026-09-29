@@ -1,73 +1,136 @@
-# Production deployment candidate
+# BTCX production deployment procedure
 
-**Status: NOT APPROVED FOR PRODUCTION.** This is a release preparation and future deployment control document, not an executable mainnet procedure. Do not deploy, connect to BTCX mainnet, accept customer payments, or use mainnet funds from this candidate. The successful staging E2E used regtest only.
+**Release candidate procedure only. Production remains NO-GO until all gates below have independently reviewed evidence.** No production wallet is created, no mainnet RPC is contacted, and no deployment is performed by this document/task.
 
-## Release baseline and dependency lock status
+This package follows BTCPay's external-plugin plus coin-infrastructure model: [Altcoins](https://docs.btcpayserver.org/Development/Altcoins/) and [Plugins](https://docs.btcpayserver.org/Development/Plugins/). BTCX plugin code runs inside BTCPay; the runtime coin services are Bitcoin-PoCX (including wallet RPC) and electrs-btcx. PostgreSQL belongs to the BTCPay stack. The current listener depends on electrs for address-history discovery. No standalone wallet, bindex, listener, or Phoenix service is used.
 
-The repository currently gives these source revisions for the tested staging candidate:
+## 0. Release gates
 
-| Component | Exact source/version | Production status |
-|---|---|---|
-| BTCX BTCPay plugin | `0.1.0`, source is the release commit; .NET target `net10.0`, SDK `10.0.401` | Network/address/RPC/payment paths support mainnet parameters; explicit `BTCX:Wallet:AllowMainnet` gate defaults false; opt-in covered only with mocked RPC |
-| BTCPay Server | `v2.4.4`, commit `2d5a0d8077bb33af080e949031da33d84b80638d` | Staging validated only |
-| Bitcoin-PoCX | commit `005bf0098e217b76a2627bfae458dff4f5718dd5`; bundled Bitcoin source commit `b88b852644f629cd5f25b3424d11b462462c24b3` | Development regtest only; compatibility patches are not approved for production |
-| bindex-btcx | commit `eda7c70660baa06affef464c7ea1e131c39304f1` | Staging only |
-| electrs-btcx | `v0.11.1-btcx.1`, commit `2f78c63e20215e20944767f0901209c4d740fe5b` | Staging only |
-| XBoard | commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` plus `integrations/xboard/0001-btcpay-btcx-provider.patch` | Isolated E2E revision; production packaging/security approval outstanding |
-| PostgreSQL | `16.15-alpine3.24`, OCI index `sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea` | Pinned in candidate staging Compose; production registry artifact/version not approved |
-| .NET SDK / BTCPay container | `10.0.401` / `2.4.4` plus OCI index digests in [image-lock.md](image-lock.md) | Base images pinned; live apt package installs and final production registry artifacts remain open |
-| Node / indexer build OS packages | Ubuntu `24.04`; Debian `trixie` / `trixie-slim`; apt installs unversioned packages | Not version-locked or reproducible |
+Do not proceed to a mainnet deployment until all are closed with evidence and approvals:
 
-Local image IDs returned by `docker image inspect` at preparation time (not registry manifest digests or production approvals) are:
+* approved source/toolchain build, package checksums, SBOM and vulnerability review;
+* production registry images built from the committed Dockerfiles, pushed, inspected and pinned by immutable digests;
+* reviewed Bitcoin-PoCX and electrs compatibility patch, upstream support decision and independent source review;
+* `BTCPayServer.Plugins.BTCX.btcpay` installed and loaded on the exact BTCPay v2.4.4 release in an isolated staging stack;
+* production wallet custody/backup restore drill, secrets manager, HTTPS, database recovery, reorg/operations policy and manual-rate governance approved;
+* production-like staging smoke in [production-smoke-test.md](production-smoke-test.md) passed using the release candidate images and provider patch;
+* Phoenix real-device test status explicitly accepted by the release owner. Current project evidence says it is pending.
 
-* PostgreSQL staging image: `sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea`
-* BTCPay staging image: `sha256:34381e062bcaf1f733230f7d46dca28b8948acc6a0ce91dfdc4ee5d4e297ec0e`
-* Bitcoin-PoCX staging image: `sha256:e84901f03d3d70e89f798235255523201c1be5a9e5756259e54984d7de0e9d99`
-* electrs-btcx staging image: `sha256:31959be4c1ccc92aa65487b7800fe0786a4990b1ab33189743a2bad82e3969f2`
+The current source references and open gates are summarized in [PROJECT-STATE.md](PROJECT-STATE.md), [image-lock.md](image-lock.md), and [production-security-checklist.md](production-security-checklist.md). Creating `v0.1.0-rc2` does not close them or authorize deployment.
 
-These identify local images and development/regtest content, **not production image approvals**. A production lock is incomplete until the approved source revisions, every base/runtime image OCI manifest digest, OS package snapshot, NuGet/Cargo/PHP dependency lock, build toolchain, XBoard patch checksum, and produced artifact checksums are independently reviewed and recorded. Base image tags are digest-qualified, but the current Dockerfiles still install unpinned apt packages from live repositories, so the requirement to fix all production dependency versions is not yet met. Do not infer approval from this table or promote the running staging containers.
+## 1. Clean-machine prerequisites
 
-## Production gates (all must close)
+1. Use a dedicated Linux host with supported Docker Engine and Docker Compose plugin. Install them using the official Docker instructions for that distribution; record exact package versions and secure the host before adding BTCPay.
+2. Provision separate production host/DNS, storage, firewall, monitoring, backup destination and secret-manager namespace. Do not reuse staging resources or credentials.
+3. Select a private Docker subnet that does not overlap host/VPN/cloud networks. Record it as `BTCX_BACKEND_SUBNET`.
+4. Choose the public BTCPay hostname and configure DNS. Allow inbound HTTPS only through the approved TLS reverse proxy; the official generator's nginx profile manages certificates when that profile is selected. Never publish node RPC, REST, Electrum or PostgreSQL ports.
 
-1. Review the mainnet address/network/RPC/payment path and explicit config gate. `BTCX:Wallet:AllowMainnet` defaults to false; environment form is `BTCX__Wallet__AllowMainnet=false`. Only an independently authorized deployment may deliberately set it true. The opt-in path has mocked RPC coverage only; no mainnet connection or transaction was made.
-2. Approve supported Bitcoin-PoCX / bindex / electrs compatibility. Current validated node carries a development-only REST compatibility backport; validate an upstream-supported implementation and independent release artifacts.
-3. Complete Phoenix real-device QR/send/receive E2E on a safe non-mainnet network.
-4. Approve a receive-key design, least-privilege node access and recovery rehearsal. The current plugin calls node wallet RPC to allocate addresses; the cookie has wallet authority and the wallet is spend-capable. Watch-only/xpub allocation is not implemented.
-5. Approve manual-rate governance, including authorized operators, dual control, rate freshness, order cut-off, audit, and reconciliation. There is no approved live BTCX/CNY market source.
-6. Lock all dependencies with immutable digests and reproducible build inputs; scan and attest the artifacts.
-7. Review secret delivery/rotation. The current provider patch reads the Greenfield token and webhook HMAC from read-only mounted secret files and stores only file paths in XBoard configuration. Production Docker secret/secret-manager mounts, ACLs, rotation and restore drills remain to be wired and verified; the full staging E2E has not been rerun with this patch.
-8. Provision separate production BTCPay and XBoard services, databases, credentials, wallets, webhook secrets, TLS, firewall policy, monitoring, alerting, retention and incident response.
-9. Approve confirmation and deep-reorg business handling. BTCPay invoice aggregate state may remain sticky `Settled` after a reorg while the individual payment rolls back; an already fulfilled XBoard order needs manual compensation.
-10. Complete signed security, privacy, legal/accounting, production-equivalent backup/restore, cutover and rollback reviews. Phoenix real-device validation is still outstanding and requires an explicit gate decision.
+## 2. Clone deployment sources and prepare the generator
 
-## Target topology and trust boundaries
+The repository does not currently use a private BTCPay Docker fork. Its source overlay and crypto-definition snapshot are under [`integrations/production/btcpayserver-docker`](../integrations/production/btcpayserver-docker/); the generator upstream commit is in `upstream-lock.json`. Establish an operator-controlled fork or get the integration accepted upstream before production. The deployment must not depend on untracked local edits or a floating `master` branch.
 
-After the gates are closed, deploy independently managed private services: BTCX node, address-allocation boundary, bindex/electrs, BTCPay, PostgreSQL and XBoard. Only the public BTCPay checkout and XBoard HTTPS endpoints should be internet reachable through reviewed TLS reverse proxies. Keep node RPC and Electrum private and firewall-restricted. Do not reuse `docker-compose.yml`, Compose project, network, volumes, database, wallet, RPC identity, API token or webhook secret from staging. The root Compose file is a regtest acceptance environment and includes the development compatibility patches.
+On an isolated packaging/staging host:
 
-The plugin's current RPC client supports node cookie file or username/password (choose exactly one); a read-only mounted cookie path is used in staging. Cookie authentication does not make a spend-capable wallet read-only. Require file-based secret injection from an approved secret manager/orchestrator, restrictive ownership/mode, rotation and log redaction. Never put secret values in `.env`, shell history, CI logs, source control, images or support tickets.
+```sh
+git clone https://github.com/btcpayserver/btcpayserver-docker.git
+cd btcpayserver-docker
+git checkout 9c8fe127850d079405dbb2db0748611548dc1a42
+```
 
-The candidate variable names and deliberately non-secret endpoints are in [`../integrations/production/.env.example`](../integrations/production/.env.example). It is documentation only. The mainnet gate stays false in this candidate; do not flip it during this release preparation.
+Apply the maintained overlay and patches to the pinned checkout:
 
-## Store setup and invoice policy
+```sh
+/path/to/btcpay4btcx/integrations/production/btcpayserver-docker/apply-overlay.sh "$PWD"
+```
 
-In each production BTCPay store, enable only `BTCX-CHAIN`. The rate rule is `BTCX_CNY = manualbtcx(BTCX_CNY)`. A separately authorized operator enters `1 BTCX = X CNY` in the plugin's server BTCX settings after recording the source, effective timestamp, approver and expiry/check time in the approved accounting record. Disable BTCX invoice creation if the quote is stale, disputed, invalid, or has no authorized operator. Test this process on an isolated non-mainnet environment before cutover.
+For repeatable production, commit those changes in the approved fork and pin its commit. Do not edit `Generated/docker-compose.generated.yml`; generator inputs are the source of truth.
 
-Each invoice captures a quote snapshot (fiat amount/currency, BTCX amount/currency, rate, source, timestamp). An authorized rate edit applies only to invoices created afterward; an already-created invoice retains the original amount and quote through its displayed expiry. Do not silently reprice or extend an invoice. If a customer must receive a new quote, expire/cancel the old invoice through supported BTCPay workflow, create a new invoice, and preserve both audit records. Define the production expiry/freshness relationship before enabling orders.
+Build the Bitcoin-PoCX and electrs images from the repository root so Docker build contexts include the pinned sources and patches:
 
-## Confirmation and reorg policy
+```sh
+docker build --pull=false -f integrations/production/bitcoin-pocx/Dockerfile \
+  -t registry.example.invalid/btcx/bitcoin-pocx:0.1.0-rc2 .
+docker build --pull=false -f integrations/production/electrs/Dockerfile \
+  -t registry.example.invalid/btcx/electrs-btcx:0.1.0-rc2 .
+docker build --pull=false -f integrations/production/btcpay/Dockerfile \
+  -t registry.example.invalid/btcx/btcpayserver:0.1.0-rc2 .
+```
 
-The plugin maps BTCPay speed policies to BTCX confirmations as follows: HighSpeed is 0 confirmations (1 when the transaction signals RBF), MediumSpeed 1, LowMediumSpeed 2, and LowSpeed 6. The validated XBoard provider selects LowSpeed and zero underpayment tolerance; the staging positive payment settled at six confirmations. Production must retain or deliberately revise this only through reviewed configuration/code and an explicit risk approval. Never treat mempool observation as fulfillment approval.
+Run `docker image inspect` on the final published references, record registry manifest digest, image config ID, build arguments, source commits and patch hashes in the deployment lock record, then configure `BTCX_NODE_IMAGE` and `BTCX_ELECTRS_IMAGE` as `registry/name:tag@sha256:<manifest-digest>`. The example registry and digests above are deliberately not supplied: no production image has been published or assigned a real digest in this repository.
 
-On reorg or a payment rollback: suspend fulfillment for affected invoices, compare node canonical chain with indexer and plugin payment rows, preserve logs and webhook deliveries, and have a payment operator classify re-mined, displaced and absent outputs. The payment can return to Processing even though the BTCPay aggregate invoice remains `Settled`. XBoard validates the underlying payment status before new paid-order mapping, but cannot reverse an order already fulfilled. Open an incident and apply the pre-approved manual refund/credit/fulfillment compensation; do not edit database rows or replay a fake callback to conceal the event.
+Build the plugin using [package-plugin.sh](../scripts/package-plugin.sh) and follow [plugin-release-package.md](plugin-release-package.md). It targets .NET 10 and BTCPay v2.4.4. Upload the `.btcpay` artifact using **Server Settings → Plugins → Upload** in a non-production validation instance and verify the plugin is listed/loaded. Do not configure `DEBUG_PLUGINS`; it is a local development mechanism only and is prohibited in production.
 
-## HTTPS and webhook configuration
+## 3. Secrets and environment
 
-Publish BTCPay and XBoard only behind valid publicly trusted HTTPS with automated certificate renewal, TLS 1.2+ (or current organization policy), HSTS where appropriate, request-size/rate limits and verified external certificate renewal. Configure BTCPay's webhook target to the XBoard HTTPS notification endpoint and subscribe only to `InvoiceSettled`. Use a production-only Greenfield token scoped to the one store and required invoice/webhook operations, and an independent random HMAC secret. XBoard must validate the raw-body signature in constant time, event type, invoice ID, store ID, metadata order ID, CNY amount/currency, BTCX payment method, settled state, and payment amount before idempotent order fulfillment. Verify real signed delivery, retry and duplicate behavior in a production-equivalent non-mainnet rehearsal; do not use fake callbacks as acceptance evidence.
+Start from [`integrations/production/.env.example`](../integrations/production/.env.example). Copy it into the operator's protected deployment directory, not Git. It contains only non-secret values and secret-file paths. Deliver secret contents from a managed secret provider or Docker secrets; do not put secret values in `.env`, Compose, Dockerfiles, command-line arguments, image layers, README or logs.
 
-## Backup and recovery
+Required production secret material:
 
-Follow [`wallet-backup-recovery.md`](wallet-backup-recovery.md). PostgreSQL, BTCPay state, XBoard state, wallet backup and release/config metadata require encrypted access-controlled backups. Secret-manager recovery is independent and must be tested. electrs/bindex indexes are rebuildable from a compatible complete node chain; preserve their exact version/configuration and budget for a full reindex. Never restore staging data or credentials over production. Never use `docker compose down -v` as a recovery step.
+* PostgreSQL password: generated and mounted to PostgreSQL using the selected official BTCPay deployment secret mechanism;
+* Bitcoin-PoCX RPC cookie: created by the daemon at runtime in the private shared cookie volume and mounted read-only into BTCPay/electrs; it is not a static password in Git;
+* BTCPay Greenfield token: scoped to the production store, mounted as a read-only file into XBoard;
+* XBoard webhook HMAC secret: independently generated and mounted as a different read-only file into XBoard;
+* BTCPay key material persisted in its protected datadir/secret manager per the selected BTCPay deployment process. It is not injected by the BTCX fragment as a literal environment value.
 
-## Change and cutover record
+Create separate values and ACLs for production and staging. Confirm XBoard's provider fields contain only `/run/secrets/...` paths (`btcpay_api_key_file`, `btcpay_webhook_key_file`). RPC uses the daemon-generated cookie in this fragment, not username/password. Never display the cookie or token when checking mounts.
 
-Use [`production-security-checklist.md`](production-security-checklist.md) and [`production-cutover.md`](production-cutover.md). A future deployment requires a separate explicit production authorization after every gate has evidence and named approval. This document and the RC tag do not authorize deployment. No production resources were contacted or changed while preparing this candidate.
+Set `BTCX_ALLOW_MAINNET=false` during configuration and verification. The plugin defaults mainnet to disabled. Enabling mainnet requires a separate authorized change after review; this package process must not turn it on automatically.
+
+## 4. Generate and inspect the BTCPay stack
+
+Use the official BTCPay Compose generator with the BTCX code selected as a crypto slot. For a mainnet production candidate, the explicit selection is:
+
+```sh
+export BTCPAYGEN_CRYPTO1=btcx
+export NBITCOIN_NETWORK=mainnet
+export BTCPAYGEN_LIGHTNING=none
+export BTCPAYGEN_REVERSEPROXY=nginx
+export BTCPAYGEN_EXCLUDE_FRAGMENTS='opt-add-tor,btcpay-host'
+export BTCX_NETWORK=main
+export BTCX_WALLET_NETWORK=main
+export BTCX_ELECTRS_NETWORK=bitcoin
+export BTCX_ALLOW_MAINNET=false
+export BTCX_BACKEND_SUBNET='<approved-private-cidr>'
+export BTCPAY_IMAGE='<immutable-btcpay-wrapper-image-reference>'
+export BTCX_NODE_IMAGE='<immutable-node-image-reference>'
+export BTCX_ELECTRS_IMAGE='<immutable-electrs-image-reference>'
+dotnet run --project docker-compose-generator/src/docker-compose-generator.csproj \
+  --configuration Release --no-launch-profile
+python3 /path/to/btcpay4btcx/integrations/production/btcpayserver-docker/normalize-generated-compose.py \
+  Generated/docker-compose.generated.yml
+```
+
+This direct generator invocation writes `Generated/docker-compose.generated.yml`. Use the official `. btcpay-setup.sh -i` deployment workflow only after separately authorized and after inspecting the generated artifact; when using `build.sh`, build its generator image from the same pinned deployment fork rather than pulling a mutable generator tag. Pin the .NET SDK/toolchain used for generation.
+
+```sh
+docker compose -f Generated/docker-compose.generated.yml config
+```
+
+Review the generated file and verify that it contains BTCPay Server, PostgreSQL, `bitcoin-pocx`, and `electrs-btcx`; the plugin is installed in BTCPay, not a separate service. Confirm only the HTTPS reverse proxy has host-published web ports. RPC/REST (8332), P2P (8333), Electrum (50001), and PostgreSQL (5432) have no host `ports:` mapping. Keep `Generated/` as generated output and regenerate it after any fragment change.
+
+`docker compose config` is a structural check only; it does not prove images exist, can be pulled, have the claimed digest, or pass service health checks. The candidate image references remain unresolved until the image publication gate is closed.
+
+## 5. First deployment steps (only after separate authorization)
+
+These steps are intentionally not executed in this task:
+
+1. Run the reviewed `docker compose ... up -d` command only after the release owner separately authorizes the production deployment.
+2. Complete the first administrator registration promptly through the HTTPS hostname; disable public registration after setup.
+3. Wait for the Bitcoin-PoCX mainnet node and electrs to synchronize and compare their heights. Confirm REST and Electrum health, and review disk/RPC/indexer alerts.
+4. Under the approved custody ceremony, create a dedicated production receiving wallet named `btcx-production-receive` through Bitcoin-PoCX wallet RPC (for example `docker compose exec bitcoin-pocx bitcoin-cli createwallet btcx-production-receive`). Verify chain/genesis and wallet status with `getwalletinfo` and `getnewaddress`. Do not reuse or restore the staging wallet. Backup and restore requirements are in [production-backup.md](production-backup.md). This repository task will not create that wallet.
+5. There is no separate BTCPay core wallet-link operation for the plugin's node RPC wallet. In the production store, enable the `BTCX-CHAIN` payment method; the plugin uses its server-configured wallet name and RPC endpoint for invoice address allocation. Confirm the wallet is loaded before enabling BTCX invoices.
+6. Set the store currency to CNY and configure the store BTCX/CNY rule to the plugin's `manualbtcx(BTCX_CNY)` provider. Enable BTCX in `/server/btcx` and record the authorized value using the definition `1 BTCX = X CNY`. For example, `1 BTCX = 0.20 CNY` is a test value only, not a production rate recommendation.
+7. Create a CNY invoice in a non-mainnet staging stack and inspect the persisted snapshot: CNY amount/currency, BTCX amount/currency, rate, source, and timestamp. A rate change applies to newly created invoices; old invoices keep their captured BTCX due amount until expiry.
+8. Apply the pinned XBoard provider patch only to the approved XBoard source revision. Configure the production BTCPay base URL and store ID; mount the scoped Greenfield token and separate webhook HMAC file. Never store their values in XBoard settings or Compose.
+9. Configure the XBoard notification URL as public HTTPS, register the matching secret with BTCPay's webhook configuration, subscribe to `InvoiceSettled`, and verify signature, invoice/order metadata, amounts, payment method and idempotent status handling in isolated staging.
+10. Confirm BTCPay, node RPC+REST, electrs Electrum, PostgreSQL readiness, TLS expiry monitoring, and backup alerts. Run the staging smoke below before any production authorization.
+
+## 6. Production-like staging smoke test
+
+Use a separate Compose project, database, node/wallet, RPC cookie, API token and webhook secret. Follow [production-smoke-test.md](production-smoke-test.md). It must use the release candidate node/electrs images and BTCPay v2.4.4, but set `BTCX_NETWORK=regtest`, `BTCX_WALLET_NETWORK=regtest`, Electrs network `regtest`, and keep `BTCX_ALLOW_MAINNET=false`. Verify an actual regtest invoice/payment, listener discovery, confirmations, settlement and signed XBoard webhook. Never use mainnet, real funds, a production store or production XBoard in this rehearsal.
+
+The repository's previous staging acceptance records a real 61.7 BTCX regtest payment, six confirmations and XBoard order paid. That historical result is not yet a production-like smoke against the new production Dockerfiles/final generator stack. Record a new run against immutable candidate images before closing this gate.
+
+## 7. Non-production stop conditions
+
+Do not accept production BTCX orders while any of these remain unresolved: production image registry digests, source/build attestations, upstream PoCX/bindex/electrs compatibility approval, wallet custody and recovery rehearsal, Phoenix device E2E decision, XBoard secret-file E2E on final staging, TLS/secret-manager/backup recovery drills, and named operations/security/finance approvals. No automatic mainnet deploy, wallet creation, XBoard production connection, or BTCX funds transfer is part of this packaging.

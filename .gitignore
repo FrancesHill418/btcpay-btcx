@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 /secrets/
+**/secrets/
 /backups/
 **/secrets.json
 **/secrets.*.json

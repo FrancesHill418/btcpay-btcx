@@ -4,7 +4,7 @@
 
 ## Release and dependencies
 
-- [ ] Mainnet support is deliberately implemented, reviewed, and covered by safe-network tests. Current plugin rejects `Network=main`.
+- [ ] Mainnet support is independently reviewed and covered by safe-network tests. Mainnet parameters exist behind `BTCX:Wallet:AllowMainnet`, which defaults false; no live mainnet connection has been made and mocked opt-in tests are not deployment evidence.
 - [ ] Phoenix real-device QR, send and receive flow passes on a non-mainnet network.
 - [ ] Bitcoin-PoCX / bindex / electrs compatibility is based on a supported reviewed release. The staging REST compatibility patch is development-only.
 - [ ] Every source commit, base/runtime OCI digest, OS package, NuGet/Cargo/PHP lock, build tool and output artifact checksum is immutable and reviewed. Base image references are digest-qualified, but apt packages use live unpinned repositories and plugin transitive NuGet dependencies have no committed lock file.

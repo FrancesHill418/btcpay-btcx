@@ -90,6 +90,7 @@ services:
       BTCX__RPC__CookieFilePath: /run/btcx-rpc/.cookie
       BTCX__Wallet__Network: regtest
       BTCX__Wallet__WalletName: btcx-receive
+      BTCX__Wallet__AllowMainnet: "false"
       BTCX__Electrum__Enabled: "true"
       BTCX__Electrum__Endpoint: tcp://bitcoin-pocx:60401/
       BTCX__Electrum__PollIntervalSeconds: "15"

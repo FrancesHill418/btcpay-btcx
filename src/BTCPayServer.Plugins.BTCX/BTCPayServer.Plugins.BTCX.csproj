@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Product>BTCX</Product>
-    <Description>BTCX payment method skeleton and administrator managed CNY rate for BTCPay Server.</Description>
+    <Description>BTCX on-chain payments for BTCPay Server with administrator-managed CNY pricing.</Description>
     <Version>0.1.0</Version>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>

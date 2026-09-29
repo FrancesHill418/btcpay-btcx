@@ -1,0 +1,10 @@
+diff --git a/docker-compose-generator/docker-fragments/btcpayserver.yml b/docker-compose-generator/docker-fragments/btcpayserver.yml
+index 0000000..0000000 100644
+--- a/docker-compose-generator/docker-fragments/btcpayserver.yml
++++ b/docker-compose-generator/docker-fragments/btcpayserver.yml
+@@ -4,3 +4,3 @@
+     container_name: generated_btcpayserver_1
+-    image: ${BTCPAY_IMAGE:-btcpayserver/btcpayserver:2.4.4}
++    image: ${BTCPAY_IMAGE:?Set the BTCPay v2.4.4 derived image by immutable tag and digest}
+     expose:
+       - "49392"

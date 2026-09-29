@@ -1,0 +1,210 @@
+services:
+  nginx:
+    restart: unless-stopped
+    image: nginx:1.31.6-trixie
+    command: ["nginx", "-g", "daemon off; worker_shutdown_timeout 5s;"]
+    logging:
+      driver: local
+      options:
+        max-size: "20m"
+        max-file: "3"
+    container_name: nginx
+    ports:
+    - "${REVERSEPROXY_HTTP_PORT:-80}:80"
+    - "${REVERSEPROXY_HTTPS_PORT:-443}:443"
+    volumes:
+    - "nginx_conf:/etc/nginx/conf.d"
+    - "nginx_vhost:/etc/nginx/vhost.d"
+    - "nginx_html:/usr/share/nginx/html"
+    - "../nginx:/etc/nginx/btcpay-routes:ro"
+    - "nginx_certs:/etc/nginx/certs:ro"
+  nginx-gen:
+    restart: unless-stopped
+    image: btcpayserver/docker-gen:0.10.7
+    container_name: nginx-gen
+    environment:
+    - DEFAULT_HOST=${REVERSEPROXY_DEFAULT_HOST:-none}
+    - RESOLVERS=127.0.0.11 valid=30s ipv6=off
+    - TRUST_DOWNSTREAM_PROXY=${TRUST_DOWNSTREAM_PROXY:-false}
+    - REVERSEPROXY_HTTPS_PORT=${REVERSEPROXY_HTTPS_PORT:-443}
+    volumes:
+    - "/var/run/docker.sock:/tmp/docker.sock:ro"
+    - "../nginx:/etc/docker-gen/templates:ro"
+    - "nginx_conf:/etc/nginx/conf.d"
+    - "nginx_vhost:/etc/nginx/vhost.d"
+    - "nginx_html:/usr/share/nginx/html"
+    - "nginx_certs:/etc/nginx/certs:ro"
+    entrypoint: /usr/local/bin/docker-gen -notify-sighup nginx -watch -wait 5s:30s /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
+    links:
+    - btcpayserver
+    - nginx
+  btcpayserver:
+    restart: unless-stopped
+    container_name: generated_btcpayserver_1
+    image: ${BTCPAY_IMAGE:?Set the BTCPay v2.4.4 derived image by immutable tag and digest}
+    expose:
+    - "49392"
+    environment:
+      BTCPAY_POSTGRES: User ID=postgres;Host=postgres;Port=5432;Application Name=btcpayserver;Database=btcpayserver${NBITCOIN_NETWORK:-regtest}
+      BTCPAY_NETWORK: ${NBITCOIN_NETWORK:-regtest}
+      BTCPAY_BIND: 0.0.0.0:49392
+      BTCPAY_ROOTPATH: ${BTCPAY_ROOTPATH:-/}
+      BTCPAY_DEBUGLOG: btcpay.log
+      BTCPAY_UPDATEURL: https://api.github.com/repos/btcpayserver/btcpayserver/releases/latest
+      BTCPAY_DOCKERDEPLOYMENT: "true"
+      BTCPAY_NODEFAULTCHAIN: "true"
+      VIRTUAL_NETWORK: nginx-proxy
+      VIRTUAL_PORT: 49392
+      VIRTUAL_HOST: ${BTCPAY_HOST},${BTCPAY_ADDITIONAL_HOSTS}
+      VIRTUAL_HOST_NAME: "btcpay"
+      SSL_POLICY: Mozilla-Intermediate
+      LETSENCRYPT_HOST: ${BTCPAY_LETSENCRYPT_HOSTS-${BTCPAY_HOST},${BTCPAY_ADDITIONAL_HOSTS}}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-<no value>}
+      BTCX__RPC__Endpoint: http://bitcoin-pocx:${BTCX_RPC_PORT:-8332}/
+      BTCX__RPC__CookieFilePath: /run/btcx-rpc/.cookie
+      BTCX__Wallet__WalletName: ${BTCX_WALLET_NAME:-btcx-production-receive}
+      BTCX__Wallet__Network: ${BTCX_WALLET_NETWORK:-main}
+      BTCX__Wallet__AllowMainnet: ${BTCX_ALLOW_MAINNET:-false}
+      BTCX__Electrum__Enabled: "true"
+      BTCX__Electrum__Endpoint: tcp://bitcoin-pocx:${BTCX_ELECTRUM_PORT:-50001}/
+      BTCX__Electrum__PollIntervalSeconds: ${BTCX_ELECTRUM_POLL_SECONDS:-15}
+    links:
+    - postgres
+    volumes:
+    - "btcpay_datadir:/datadir"
+    - "btcpay_pluginsdir:/root/.btcpayserver/Plugins"
+    - btcx_rpc_cookie:/run/btcx-rpc:ro
+    secrets:
+    - btcx_postgres_password
+    networks:
+    - default
+    - btcx_backend
+    - btcx_database
+    depends_on:
+      postgres:
+        condition: service_healthy
+      bitcoin-pocx:
+        condition: service_healthy
+      electrs-btcx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/49392; printf 'GET /api/v1/health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3; head -n 1 <&3 | grep -q ' 200 '"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
+      start_period: 2m
+  postgres:
+    restart: unless-stopped
+    container_name: generated_postgres_1
+    shm_size: 256mb
+    image: btcpayserver/postgres:18.6
+    command: ["-c", "random_page_cost=1.0", "-c", "shared_preload_libraries=pg_stat_statements"]
+    volumes:
+    - "postgres_datadir:/var/lib/postgresql"
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/btcx_postgres_password
+    secrets:
+    - btcx_postgres_password
+    networks:
+    - btcx_database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d btcpayserver${NBITCOIN_NETWORK:-mainnet}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+  bitcoin-pocx:
+    image: ${BTCX_NODE_IMAGE:?Set BTCX_NODE_IMAGE to a published tag@sha256 digest}
+    restart: unless-stopped
+    environment:
+      BTCX_RPC_ALLOWIP: ${BTCX_BACKEND_SUBNET:?Set a private non-overlapping Docker subnet}
+      BTCX_NETWORK: ${BTCX_NETWORK:-main}
+      BTCX_RPC_PORT: ${BTCX_RPC_PORT:-8332}
+      BTCX_P2P_PORT: ${BTCX_P2P_PORT:-8333}
+    volumes:
+    - btcx_node_data:/data
+    - btcx_rpc_cookie:/run/btcx-rpc
+    networks:
+    - btcx_backend
+    - btcx_p2p
+    expose:
+    - "${BTCX_RPC_PORT:-8332}"
+    - "${BTCX_P2P_PORT:-8333}"
+    - "${BTCX_ELECTRUM_PORT:-50001}"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 12
+      start_period: 2m
+    stop_grace_period: 2m
+  electrs-btcx:
+    image: ${BTCX_ELECTRS_IMAGE:?Set BTCX_ELECTRS_IMAGE to a published tag@sha256 digest}
+    restart: unless-stopped
+    command:
+    - --network=${BTCX_ELECTRS_NETWORK:-bitcoin}
+    - --daemon-rpc-addr=127.0.0.1:${BTCX_RPC_PORT:-8332}
+    - --electrum-rpc-addr=0.0.0.0:${BTCX_ELECTRUM_PORT:-50001}
+    - --cookie-file=/run/btcx-rpc/.cookie
+    - --db-dir=/data/electrs
+    volumes:
+    - btcx_electrs_data:/data
+    - btcx_rpc_cookie:/run/btcx-rpc:ro
+    network_mode: service:bitcoin-pocx
+    depends_on:
+      bitcoin-pocx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "/usr/local/bin/electrs-healthcheck.py", "127.0.0.1", "${BTCX_ELECTRUM_PORT:-50001}"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
+      start_period: 2m
+    stop_grace_period: 1m
+  letsencrypt-nginx-proxy-companion:
+    restart: unless-stopped
+    image: btcpayserver/letsencrypt-nginx-proxy-companion:2.2.9-2
+    container_name: letsencrypt-nginx-proxy-companion
+    volumes:
+    - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    - "nginx_conf:/etc/nginx/conf.d"
+    - "nginx_vhost:/etc/nginx/vhost.d"
+    - "nginx_html:/usr/share/nginx/html"
+    - "nginx_certs:/etc/nginx/certs:rw"
+    - "acme:/etc/acme.sh"
+    environment:
+      NGINX_DOCKER_GEN_CONTAINER: "nginx-gen"
+      NGINX_PROXY_CONTAINER: "nginx"
+      ACME_CA_URI: ${ACME_CA_URI:-production}
+    links:
+    - nginx-gen
+volumes:
+  nginx_conf:
+  nginx_vhost:
+  nginx_html:
+  nginx_certs:
+  btcpay_datadir:
+  btcpay_pluginsdir:
+  postgres_datadir:
+  btcx_node_data:
+  btcx_rpc_cookie:
+  btcx_electrs_data:
+  acme:
+configs: {}
+networks:
+  default: {}
+  btcx_backend:
+    name: ${BTCX_BACKEND_NETWORK:-btcpay-btcx-private}
+    internal: true
+    ipam:
+      config:
+      - subnet: ${BTCX_BACKEND_SUBNET:?Set a private non-overlapping Docker subnet}
+  btcx_p2p:
+    name: ${BTCX_P2P_NETWORK:-btcpay-btcx-p2p}
+    internal: false
+  btcx_database:
+    name: ${BTCX_DATABASE_NETWORK:-btcpay-btcx-database}
+    internal: true
+secrets:
+  btcx_postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:?Set POSTGRES_PASSWORD_FILE to the protected deployment secret file}

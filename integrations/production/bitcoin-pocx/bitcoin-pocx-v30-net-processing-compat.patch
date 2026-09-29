@@ -1,0 +1,20 @@
+diff --git a/src/node/blockstorage.h b/src/node/blockstorage.h
+index d0590d4..d0590d4 100644
+--- a/src/node/blockstorage.h
++++ b/src/node/blockstorage.h
+@@ -427,0 +428 @@ public:
++    bool ReadRawBlock(std::vector<std::byte>& block, const FlatFilePos& pos) const;
+diff --git a/src/node/blockstorage.cpp b/src/node/blockstorage.cpp
+index 2a1c3d4..2a1c3d4 100644
+--- a/src/node/blockstorage.cpp
++++ b/src/node/blockstorage.cpp
+@@ -1117,0 +1118,9 @@ BlockManager::ReadRawBlockResult BlockManager::ReadRawBlock(const FlatFilePos& p
++bool BlockManager::ReadRawBlock(std::vector<std::byte>& block, const FlatFilePos& pos) const
++{
++    auto result = ReadRawBlock(pos);
++    if (!result) {
++        return false;
++    }
++    block = std::move(result.data);
++    return true;
++}

@@ -122,6 +122,12 @@ The prior release-preparation snapshot and its `v0.1.0-rc1` tag remain unchanged
 
 Current staging service names were resolved from `docker compose config`/`ps`: `bitcoin-pocx`, `electrs-btcx`, `postgres`, `wallet-init`, and `btcpay`. Electrs deliberately uses the node service network namespace because pinned bindex-btcx requests Bitcoin REST on localhost. Do not change its RPC/REST target to service DNS while this topology remains in place. The final regtest staging acceptance is **PASS** as recorded above.
 
+## Final production packaging checkpoint (2026-09-29)
+
+The .NET 10 BTCX plugin release package was produced locally with BTCPay PluginPacker and is installable in a BTCPay test instance; the `.btcpay` artifact is intentionally not committed. The BTCX official-generator overlay, generated Compose snapshot, non-secret environment template, Bitcoin-PoCX/electrs/BTCPay build sources, backup, healthcheck, deployment, and smoke-test guides are present. Official generator output passed `docker compose config`; root Compose passed config validation. `dotnet build` and `dotnet test` passed (107 tests passed, one gated runtime host smoke skipped).
+
+The electrs candidate image built locally from the pinned electrs/bindex commits, and the thin BTCPay v2.4.4 wrapper image built locally. The Bitcoin-PoCX image build was cancelled while downloading its pinned toolchain, before source compilation. Candidate images have no published registry digests, and no production-like E2E ran against these final candidate artifacts. Phoenix real-device E2E, upstream patch review, production wallet restore, secret-manager/XBoard final-stack check and other gates remain open. This is **PRODUCTION BLOCKED / release candidate packaging only**; do not deploy, connect mainnet, create production wallet, contact production XBoard, or send funds.
+
 ## Production hardening checkpoint (2026-09-29)
 
 Hardening changes are committed separately from release tags. Mainnet now has an explicit `BTCX:Wallet:AllowMainnet` gate with default false; a simulated RPC test confirms default refusal and opt-in address allocation. Root staging Compose and base Dockerfiles use tag-plus-digest references; SDK roll-forward is disabled. [`docs/image-lock.md`](image-lock.md) records exact refs, patch hashes and drift. The XBoard provider patch reads Greenfield/HMAC credentials from read-only mounted secret files; on exact XBoard commit its patch applies and PHPUnit passes 7 tests / 28 assertions. BTCX focused tests pass 6/6.

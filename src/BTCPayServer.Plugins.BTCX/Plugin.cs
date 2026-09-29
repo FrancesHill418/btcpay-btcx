@@ -23,7 +23,7 @@ public sealed class Plugin : BaseBTCPayServerPlugin
 
     public override string Identifier => "BTCPayServer.Plugins.BTCX";
     public override string Name => "BTCX";
-    public override string Description => "BTCX payment method skeleton with an administrator managed CNY rate.";
+    public override string Description => "BTCX on-chain payments for BTCPay Server with administrator-managed CNY pricing.";
     public override Version Version => new(0, 1, 0);
     public override IBTCPayServerPlugin.PluginDependency[] Dependencies =>
     [

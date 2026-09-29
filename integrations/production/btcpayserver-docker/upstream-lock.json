@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/btcpayserver/btcpayserver-docker.git",
+  "commit": "9c8fe127850d079405dbb2db0748611548dc1a42",
+  "upstreamCryptoDefinitions": "docker-compose-generator/crypto-definitions.json",
+  "overlayCrypto": "btcx",
+  "fragment": "docker-compose-generator/docker-fragments/btcx.yml",
+  "note": "This repository does not contain a private fork. Apply the maintained BTCX overlay to this exact upstream revision or maintain an approved fork before production deployment."
+}

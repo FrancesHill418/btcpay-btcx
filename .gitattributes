@@ -1,0 +1,3 @@
+# Unified patch files encode context blank lines as a single-space prefix.
+# Treat that whitespace as patch syntax rather than source trailing whitespace.
+integrations/production/bitcoin-pocx/*.patch -whitespace

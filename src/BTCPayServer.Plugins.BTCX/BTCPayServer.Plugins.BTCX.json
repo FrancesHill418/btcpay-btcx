@@ -2,7 +2,7 @@
   "Identifier": "BTCPayServer.Plugins.BTCX",
   "Name": "BTCX",
   "Version": "0.1.0",
-  "Description": "BTCX payment method skeleton with an administrator managed CNY rate.",
+  "Description": "BTCX on-chain payments for BTCPay Server with administrator-managed CNY pricing.",
   "SystemPlugin": false,
   "Dependencies": [
     {
@@ -10,7 +10,7 @@
       "Condition": ">=2.4.4"
     }
   ],
-  "Documentation": null,
+  "Documentation": "https://docs.btcpayserver.org/Development/Altcoins/",
   "Source": null,
   "Author": null,
   "AuthorLink": null
