@@ -3,6 +3,7 @@ using System.Text;
 using BTCPayServer.Plugins.BTCX;
 using BTCPayServer.Plugins.BTCX.Rpc;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Hosting;
 
 namespace BTCPayServer.Plugins.BTCX.Wallet;
 
@@ -13,14 +14,15 @@ namespace BTCPayServer.Plugins.BTCX.Wallet;
 /// </summary>
 public sealed class BtcxReceiveAddressProvider(
     Func<IBtcxRpcClient> rpcClientFactory,
-    IOptions<BtcxWalletOptions> options) : IBtcxReceiveAddressProvider
+    IOptions<BtcxWalletOptions> options,
+    IHostEnvironment environment) : IBtcxReceiveAddressProvider
 {
     private static readonly SemaphoreSlim AllocationLock = new(1, 1);
 
     public async Task<BtcxReceiveAddress> GetOrAllocateAsync(string invoiceId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
-        var settings = options.Value.Validate();
+        var settings = options.Value.Validate(environment.EnvironmentName);
         var label = CreateLabel(invoiceId);
         await AllocationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try

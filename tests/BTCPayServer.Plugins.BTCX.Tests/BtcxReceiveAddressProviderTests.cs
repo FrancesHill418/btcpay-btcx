@@ -4,6 +4,8 @@ using System.Text.Json;
 using BTCPayServer.Plugins.BTCX.Rpc;
 using BTCPayServer.Plugins.BTCX.Wallet;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Xunit;
 
 namespace BTCPayServer.Plugins.BTCX.Tests;
@@ -86,7 +88,20 @@ public sealed class BtcxReceiveAddressProviderTests
         Assert.Contains("getnewaddress", wallet.Methods);
     }
 
-    private static BtcxReceiveAddressProvider CreateProvider(FakeWalletHandler handler, string network = "regtest", bool allowMainnet = false)
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Staging")]
+    public async Task Mainnet_is_rejected_in_development_and_staging_even_when_enabled(string environmentName)
+    {
+        var wallet = new FakeWalletHandler("main");
+        var provider = CreateProvider(wallet, network: "main", allowMainnet: true, environmentName: environmentName);
+
+        await Assert.ThrowsAsync<Microsoft.Extensions.Options.OptionsValidationException>(() =>
+            provider.GetOrAllocateAsync("invoice-mainnet-nonproduction", TestContext.Current.CancellationToken));
+        Assert.Empty(wallet.Methods);
+    }
+
+    private static BtcxReceiveAddressProvider CreateProvider(FakeWalletHandler handler, string network = "regtest", bool allowMainnet = false, string environmentName = "Production")
     {
         var rpc = new BtcxRpcClient(new HttpClient(handler), Options.Create(new BtcxRpcOptions
         {
@@ -96,13 +111,21 @@ public sealed class BtcxReceiveAddressProviderTests
         return new BtcxReceiveAddressProvider(() => rpc, Options.Create(new BtcxWalletOptions
         {
             WalletName = "receive-only", Network = network, AllowMainnet = allowMainnet
-        }));
+        }), new TestHostEnvironment(environmentName));
     }
 
     private static string MakeAddress(byte value)
     {
         var program = Enumerable.Repeat(value, 20).ToArray();
         return BtcxAddress.FromScriptPubKey(new NBitcoin.Script([0x00, 0x14, .. program]), BtcxNetworkId.Regtest);
+    }
+
+    private sealed class TestHostEnvironment(string environmentName) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = environmentName;
+        public string ApplicationName { get; set; } = "BTCX.Tests";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     private sealed class FakeWalletHandler(string chain, string? addressOverride = null) : HttpMessageHandler

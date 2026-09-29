@@ -12,7 +12,7 @@ public sealed class BtcxWalletOptions
     public string Network { get; set; } = "regtest";
     public bool AllowMainnet { get; set; }
 
-    public (string WalletName, BtcxNetworkId Network) Validate()
+    public (string WalletName, BtcxNetworkId Network) Validate(string? environmentName = null)
     {
         if (string.IsNullOrWhiteSpace(WalletName) || !Regex.IsMatch(WalletName, "^[A-Za-z0-9_.-]+$", RegexOptions.CultureInvariant))
             throw new OptionsValidationException(nameof(BtcxWalletOptions), typeof(BtcxWalletOptions), ["WalletName must be one explicit wallet route segment."]);
@@ -23,6 +23,11 @@ public sealed class BtcxWalletOptions
         if (networkParameters.Id == BtcxNetworkId.Mainnet && !AllowMainnet)
             throw new OptionsValidationException(nameof(BtcxWalletOptions), typeof(BtcxWalletOptions),
                 ["BTCX mainnet is disabled. Explicitly set BTCX:Wallet:AllowMainnet=true only in an approved mainnet deployment."]);
+        if (networkParameters.Id == BtcxNetworkId.Mainnet && AllowMainnet &&
+            (string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(environmentName, "Staging", StringComparison.OrdinalIgnoreCase)))
+            throw new OptionsValidationException(nameof(BtcxWalletOptions), typeof(BtcxWalletOptions),
+                ["BTCX mainnet cannot be enabled in Development or Staging environments."]);
         return (WalletName, networkParameters.Id);
     }
 }

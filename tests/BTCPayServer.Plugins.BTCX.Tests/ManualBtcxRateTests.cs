@@ -10,6 +10,8 @@ using BTCPayServer.Services.Rates;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -199,6 +201,7 @@ public sealed class ManualBtcxRateTests
         Assert.IsAssignableFrom<BaseBTCPayServerPlugin>(new Plugin());
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment());
         services.AddSingleton<ISettingsRepository>(new FakeSettingsRepository(EnabledSettings(0.20m)));
         new Plugin().Execute(services);
 
@@ -215,6 +218,14 @@ public sealed class ManualBtcxRateTests
         Assert.Equal("BTCPayServer.Plugins.BTCX", new Plugin().Identifier);
         Assert.Contains(new Plugin().Dependencies, dependency => dependency.Condition == ">=2.4.4");
         Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "BTCPayServer.Plugins.BTCX.json")));
+    }
+
+    private sealed class TestHostEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+        public string ApplicationName { get; set; } = "BTCX.Tests";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     [Fact]

@@ -10,8 +10,8 @@
       "Condition": ">=2.4.4"
     }
   ],
-  "Documentation": "https://docs.btcpayserver.org/Development/Altcoins/",
-  "Source": null,
-  "Author": null,
-  "AuthorLink": null
+  "Documentation": "https://github.com/FrancesHill418/btcpay-btcx/blob/main/README.md",
+  "Source": "https://github.com/FrancesHill418/btcpay-btcx",
+  "Author": "FrancesHill418",
+  "AuthorLink": "https://github.com/FrancesHill418"
 }
