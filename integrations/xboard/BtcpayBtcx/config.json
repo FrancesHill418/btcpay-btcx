@@ -1,0 +1,19 @@
+{
+  "name": "BTCPay BTCX",
+  "code": "btcpay_btcx",
+  "type": "payment",
+  "version": "1.0.0",
+  "description": "Independent BTCPay Greenfield payment integration for BTCX.",
+  "author": "FrancesHill418",
+  "config": {
+    "enabled": { "type": "boolean", "label": "Enable BTCX payment method", "default": true },
+    "display_name": { "type": "string", "label": "Display name", "default": "BTCPay BTCX" },
+    "icon": { "type": "string", "label": "Icon", "default": "₿" },
+    "btcpay_btcx_url": { "type": "string", "label": "BTCPay Greenfield URL", "default": "" },
+    "btcpay_btcx_store_id": { "type": "string", "label": "BTCPay Store ID", "default": "" },
+    "btcpay_btcx_api_key_file": { "type": "string", "label": "Greenfield API token secret-file path", "default": "/run/secrets/btcpay-btcx-api-key" },
+    "btcpay_btcx_webhook_key_file": { "type": "string", "label": "Webhook HMAC secret-file path", "default": "/run/secrets/btcpay-btcx-webhook-key" },
+    "btcpay_btcx_rate": { "type": "string", "label": "BTCX/CNY rate (CNY per BTCX)", "default": "" },
+    "btcpay_btcx_allow_mainnet": { "type": "boolean", "label": "Allow BTCX mainnet invoices", "default": false }
+  }
+}
