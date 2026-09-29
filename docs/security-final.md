@@ -1,5 +1,7 @@
 # Security and reliability review
 
+**Historical review:** this report covered the superseded patch-based XBoard provider. The standalone BtcpayBtcx implementation and its staging E2E are documented in [`integrations/xboard/BtcpayBtcx/README.md`](../integrations/xboard/BtcpayBtcx/README.md) and [`staging-deployment.md`](staging-deployment.md). The historical findings below are not a review of production readiness.
+
 Review date: 2026-09-28. Scope: BTCX plugin at the current development revision and XBoard provider patch against `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`. Isolated regtest node/wallet, loopback PostgreSQL and development node-cookie authentication were used; no production service or credential was accessed. Source scans found no PEM/xprv key material or credential files. The only credential-like values are explicit test placeholders in the runtime smoke and XBoard unit fixtures.
 
 ## RPC and discovery

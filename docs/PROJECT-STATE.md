@@ -1,4 +1,10 @@
-# Project state
+# Current XBoard architecture validation (2026-09-29)
+
+XBoard BTCX integration has been refactored into `integrations/xboard/BtcpayBtcx`, a standalone plugin installed at `plugins/BtcpayBtcx`. It registers `BTCPayBTCX`; the original `BTCPay` plugin source/config were verified byte-for-byte against XBoard commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`. No XBoard core files are modified. Its migration owns only `btcpay_btcx_invoice_bindings`, `btcpay_btcx_webhook_registrations`, and `btcpay_btcx_webhook_deliveries`; the legacy patch artifact has been removed.
+
+The standalone plugin's XBoard PHPUnit suite passed 17 tests / 77 assertions; PHP syntax checks and PHPStan passed. The 2026-09-29 isolated staging/regtest E2E passed CNY 12.34 → 61.7 BTCX at rate 0.20, six confirmations, `InvoiceSettled`, XBoard paid order, and signed duplicate callback replay (HTTP 200, one ledger row, order remained paid). Production and mainnet remain untested and unauthorized.
+
+# Historical project state
 
 **Synchronized:** 2026-09-28  
 **Current implementation:** MILESTONE 03 passed a gated BTCPay/PostgreSQL + BTCX regtest acceptance using real electrs-btcx against a development-only PoCX REST compatibility backport; wallet backup/restore passed. XBoard live order→Greenfield→BTCX regtest payment→confirmation→signed webhook→paid-order E2E passed in an isolated environment. Phoenix parser is **PROTOCOL COMPATIBLE**, but **REAL DEVICE E2E VERIFIED: NO** because no device/emulator runtime is available. Development validation remains incomplete on the Phoenix device gate. See [milestone-06-development-acceptance.md](milestone-06-development-acceptance.md).

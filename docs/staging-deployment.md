@@ -81,18 +81,17 @@ For this PoCX build, regtest defaults are RPC `18443`, P2P `18444`, and address 
 
 After plugin load, an authorized BTCPay server administrator visits `/server/btcx`, enables BTCX, and enters `1 BTCX = X CNY`. The first release uses **manual** pricing only; there is no live exchange or Observatory feed. Save through the UI so the plugin records the UTC update timestamp and `manual` source. Confirm the store's `BTCX_CNY` rate rule selects `manualbtcx(BTCX_CNY)` and has no alternate fallback. Create a disposable invoice and verify its BTCX amount and immutable rate/timestamp snapshot before payment. Rate edits affect new invoices, not existing invoice quotes.
 
-## XBoard provider patch and webhook
+## XBoard standalone provider and webhook
 
-On a separate development XBoard instance, check out the pinned source commit and apply the preserved provider patch:
+On a separate development XBoard instance, copy [`integrations/xboard/BtcpayBtcx`](../integrations/xboard/BtcpayBtcx) into `XBoard/plugins/BtcpayBtcx/`, then install and enable plugin code `btcpay_btcx` through XBoard's plugin manager. Do not apply the old patch or modify `plugins-core/Btcpay/Plugin.php`.
 
-```sh
-git checkout 4f48e61a2cbc6db5338872b6bdb45ef954ec1256
-git apply --unidiff-zero /path/to/btcpay-btcx/integrations/xboard/0001-btcpay-btcx-provider.patch
-```
+The independent `BTCPayBTCX` method creates a CNY invoice with `metadata.orderId`, forces BTCPay `BTCX-CHAIN`, verifies the BTCPay invoice's manual rate and BTCX amount snapshot, and stores an immutable order binding. Configure its separate development URL, Store ID, rate, least-privilege Greenfield token file, webhook HMAC secret file, and `allow_mainnet=false`. Use read-only `/run/secrets` mounts. The provider registers only `InvoiceSettled` at XBoard's normal `/api/v1/guest/payment/notify/BTCPayBTCX/{uuid}` callback; validate signature, invoice/order binding, amounts, currency, idempotency, and HTTP 200 with disposable orders. The original `BTCPay` payment channel remains independently available. Never paste token or HMAC secret into `.env.example`, command history, logs, or this repository.
 
-The provider patch selects Greenfield payment method `BTCX-CHAIN`, creates a CNY invoice with `metadata.orderId`, and binds the order to the invoice. Configure the development BTCPay URL, Store ID, a least-privilege Greenfield token (invoice create/view and webhook view/create/update), and a separate random webhook HMAC secret in the XBoard secret store. Use HTTPS except for isolated loopback/private development endpoints where the provider explicitly allows HTTP. Register `InvoiceSettled`; confirm signature verification, invoice/order binding, amount/currency, idempotency, and a real HTTP 200 callback with disposable orders. Never paste token or HMAC secret into `.env.example`, command history, logs, or this repository.
+The standalone provider tests are under `BtcpayBtcx/Tests`; they cover duplicate delivery, underpayment, overpayment, expiry, invalid signatures, invoice/order binding, and coexistence with the original provider. The earlier patch-based E2E is historical and does not establish this standalone integration's behavior; see the new standalone run below. Live under/overpayment and expiry were not run as end-to-end transactions.
 
-The patch's automated provider tests cover duplicate delivery, underpayment, overpayment, expiry, invalid signatures, and invoice/order binding. The isolated live E2E validated exact-payment order completion. Live under/overpayment, expiry, and duplicate webhook delivery were not run as end-to-end transactions; retain that distinction in the staging record.
+### 2026-09-29 standalone BtcpayBtcx E2E
+
+The standalone `plugins/BtcpayBtcx` plugin was installed and enabled in the isolated staging XBoard at commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`. `BTCPay` and `BTCPayBTCX` were both present; the original `plugins-core/Btcpay/Plugin.php` and `config.json` matched that upstream commit byte-for-byte. An XBoard CNY 12.34 order created BTCPay invoice `EPtMs7UrPBZKC98kKWHg4E`, with the BTCPay BTCX prompt and XBoard binding both snapshotting rate 0.20 CNY/BTCX and amount 61.7 BTCX on regtest. Regtest transaction `18e454e3af7310e388942e01a3ca8d4f25aeade13e5e4d847856ce4ba990e13e` was seen and confirmed after six generated regtest blocks. BTCPay reported the invoice `Settled` with CNY 12.34 paid and a settled 61.7 BTCX payment; the XBoard order reached status 3 and its BtcpayBtcx delivery ledger contained one row. Replaying a validly signed callback with the same delivery ID returned HTTP 200 and `success`, while the order remained status 3 and the ledger stayed at one row. This validates only isolated regtest staging, not mainnet or production.
 
 ## Staging acceptance and cleanup
 

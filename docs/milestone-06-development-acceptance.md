@@ -1,5 +1,7 @@
 # MILESTONE 06 — Development acceptance
 
+**Historical record:** patch-based XBoard results below are superseded by the 2026-09-29 standalone [`BtcpayBtcx` E2E](staging-deployment.md#2026-09-29-standalone-btcpaybtcx-e2e). The old patch artifact was removed; current provider tests live under `integrations/xboard/BtcpayBtcx/Tests`.
+
 Date: 2026-09-28. All runtime activity used isolated development paths, a loopback-only PoCX regtest node and a loopback PostgreSQL instance. No production service, credential or BTCX mainnet was accessed.
 
 ## Automated validation
@@ -50,7 +52,7 @@ These are development acceptance results only. No deployment or mainnet connecti
 
 The stale XBoard/Phoenix status bullets above are superseded by this update. XBoard live E2E passed in isolated loopback services using XBoard commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`, BTCPay v2.4.4 and BTCX regtest. Real XBoard order `2026092817090198674274629` (CNY 12.34) created Greenfield invoice `M1pw6WxA1RZjFWTeveh4ct`, with matching `metadata.orderId`, BTCX-CHAIN, BTCX amount 61.7, quote snapshot rate 0.20, and a `btcx:` address/URI. Transaction `d1902feecaff154d8734f51c1e6238e867e1507971d860975d62061f40c331ab` was sent on regtest and detected by BTCPay. The invoice settled, BTCPay's actual InvoiceSettled webhook returned HTTP 200, and the XBoard order reached paid status (`status=3`) with callback invoice ID matching the invoice ID. The webhook code validates the BTCPay-Sig HMAC-SHA256 using constant-time comparison over the raw payload. No fake webhook was used for successful flow.
 
-The live run exposed and fixed the provider's payment method ID: BTCPay Greenfield serves `BTCX-CHAIN`, not `BTCX-OnChain`. The patch and updated provider tests are preserved in `integrations/xboard/0001-btcpay-btcx-provider.patch`; provider tests passed (6 tests, 25 assertions).
+The live run exposed and fixed the provider's payment method ID: BTCPay Greenfield serves `BTCX-CHAIN`, not `BTCX-OnChain`. The patch and tests described by this historical run were superseded and migrated to the standalone `BtcpayBtcx` plugin; provider tests for that architecture are documented separately above.
 
 Live duplicate webhook redelivery was not run because the BTCPay session needed for its UI-only redelivery route was unavailable; duplicate behavior remains covered by provider tests. Underpayment, overpayment and expiry were not exercised live in this XBoard run and remain non-live coverage.
 

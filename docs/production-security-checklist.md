@@ -9,7 +9,7 @@
 - [ ] Bitcoin-PoCX / bindex / electrs compatibility is based on a supported reviewed release. The staging REST compatibility patch is development-only.
 - [ ] Every source commit, base/runtime OCI digest, OS package, NuGet/Cargo/PHP lock, build tool and output artifact checksum is immutable and reviewed. Base image references are digest-qualified, but apt packages use live unpinned repositories and plugin transitive NuGet dependencies have no committed lock file.
 - [ ] Build is reproducible from the documented source and lock manifest; SBOM, vulnerability review and artifact provenance are archived.
-- [ ] No BTCPay core changes are included; XBoard provider patch is reviewed against the exact XBoard commit.
+- [ ] No BTCPay core or XBoard core changes are included; the standalone XBoard `BtcpayBtcx` plugin is validated against the exact supported XBoard commit.
 
 ## Environment separation and secrets
 
@@ -18,7 +18,7 @@
 - [ ] No staging database/volume, wallet, API token, webhook HMAC, RPC cookie or customer data is copied into production.
 - [ ] Secrets are issued by an approved secret manager/orchestrator as files or equivalent protected workload identity; they are absent from Git, `.env` values, container image layers, command lines, shell history, logs, crash dumps and support bundles.
 - [ ] BTCPay Greenfield token has only the required store-scoped invoice and webhook permissions; token rotation/revocation is rehearsed.
-- [x] Provider patch reads the Greenfield token and webhook HMAC from read-only mounted secret files; only file paths are persisted in provider configuration. Secret paths are restricted to `/run/secrets/` outside tests. `git apply --unidiff-zero --check` was verified at the exact XBoard commit and the isolated suite passed 7 tests / 29 assertions, including duplicate delivery no-op behavior. Production secret mounts, ACLs, rotation, recovery and full staging E2E with mounted secrets remain unverified.
+- [ ] Standalone `BtcpayBtcx` reads the Greenfield token and webhook HMAC from separate read-only `/run/secrets/` files; only file paths are persisted. Plugin tests verify the secret root, webhook authentication, duplicate delivery behavior and independent database tables. Production secret mounts, ACLs, rotation, recovery and a full staging E2E with mounted secrets remain unverified.
 - [ ] PostgreSQL credentials are independently generated and rotated; DB is private, encrypted at rest and backed up through a protected process.
 - [ ] RPC authentication selects exactly one supported mechanism (cookie or username/password). Cookie exposure and wallet RPC authority are reviewed; no node datadir is mounted into BTCPay.
 - [ ] Logs and telemetry redact credentials, customer-sensitive invoice data and payment payloads according to retention policy.

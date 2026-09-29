@@ -41,7 +41,7 @@ The Ubuntu base has no CA bundle. Its Dockerfiles bootstrap `ca-certificates` wi
 |---|---|---|---|
 | `integrations/electrs-btcx/bitcoin-pocx-v30-blockpart-compat.patch` | `9dc06e76a641996fc7831b02f9ba27e39405e926b2a544962070495e2cb1ae21` | Bitcoin Core source `b88b852644f629cd5f25b3424d11b462462c24b3` | Backport blockpart REST endpoint from Bitcoin Core PR #33657 to the older v30 source API |
 | `integrations/electrs-btcx/bitcoin-pocx-v30-net-processing-compat.patch` | `bf6e17148c4dc3a7397f310418915a2ccb027c1e4c4f3eff4bbdc60e784055cb` | Same | Preserve the old `ReadRawBlock(vector&, pos)` overload used by v30 `net_processing.cpp` |
-| `integrations/xboard/0001-btcpay-btcx-provider.patch` | `1dd6130b819321851c2bc26664ae0eac380ea0926badb17523bd52d7cbbfd70b` | XBoard commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` | Provider and `/run/secrets`-restricted credential file diff; `git apply --unidiff-zero --check` passed on an independent checkout |
+| Historical `integrations/xboard/0001-btcpay-btcx-provider.patch` (removed 2026-09-29) | `1dd6130b819321851c2bc26664ae0eac380ea0926badb17523bd52d7cbbfd70b` | XBoard commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` | Superseded patch-based provider; do not apply. Production/staging integration is `integrations/xboard/BtcpayBtcx/` |
 
 Apply in filename order in a clean source checkout at that exact commit; check hashes first; use `git apply --check` before each patch; then build from the Dockerfile. Never substitute a VPS-edited binary. Both patches affect block-file read/REST compatibility only; staging exercised the patched route. Their correctness and production maintenance are **not independently security-reviewed**.
 

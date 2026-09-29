@@ -13,7 +13,7 @@ Do not proceed to a mainnet deployment until all are closed with evidence and ap
 * reviewed Bitcoin-PoCX and electrs compatibility patch, upstream support decision and independent source review;
 * `BTCPayServer.Plugins.BTCX.btcpay` installed and loaded on the exact BTCPay v2.4.4 release in an isolated staging stack;
 * production wallet custody/backup restore drill, secrets manager, HTTPS, database recovery, reorg/operations policy and manual-rate governance approved;
-* production-like staging smoke in [production-smoke-test.md](production-smoke-test.md) passed using the release candidate images and provider patch;
+* production-like staging smoke in [production-smoke-test.md](production-smoke-test.md) passed using release candidate images and the standalone XBoard `BtcpayBtcx` plugin;
 * Phoenix real-device test status explicitly accepted by the release owner. Current project evidence says it is pending.
 
 The current source references and open gates are summarized in [PROJECT-STATE.md](PROJECT-STATE.md), [image-lock.md](image-lock.md), and [production-security-checklist.md](production-security-checklist.md). Creating `v0.1.0-rc2` does not close them or authorize deployment.
@@ -72,7 +72,7 @@ Required production secret material:
 * XBoard webhook HMAC secret: independently generated and mounted as a different read-only file into XBoard;
 * BTCPay key material persisted in its protected datadir/secret manager per the selected BTCPay deployment process. It is not injected by the BTCX fragment as a literal environment value.
 
-Create separate values and ACLs for production and staging. Confirm XBoard's provider fields contain only `/run/secrets/...` paths (`btcpay_api_key_file`, `btcpay_webhook_key_file`). RPC uses the daemon-generated cookie in this fragment, not username/password. Never display the cookie or token when checking mounts.
+Create separate values and ACLs for production and staging. Confirm BtcpayBtcx's provider fields contain only `/run/secrets/...` paths (`btcpay_btcx_api_key_file`, `btcpay_btcx_webhook_key_file`). RPC uses the daemon-generated cookie in this fragment, not username/password. Never display the cookie or token when checking mounts.
 
 Set `BTCX_ALLOW_MAINNET=false` during configuration and verification. The plugin defaults mainnet to disabled. Enabling mainnet requires a separate authorized change after review; this package process must not turn it on automatically.
 
@@ -121,7 +121,7 @@ These steps are intentionally not executed in this task:
 5. There is no separate BTCPay core wallet-link operation for the plugin's node RPC wallet. In the production store, enable the `BTCX-CHAIN` payment method; the plugin uses its server-configured wallet name and RPC endpoint for invoice address allocation. Confirm the wallet is loaded before enabling BTCX invoices.
 6. Set the store currency to CNY and configure the store BTCX/CNY rule to the plugin's `manualbtcx(BTCX_CNY)` provider. Enable BTCX in `/server/btcx` and record the authorized value using the definition `1 BTCX = X CNY`. For example, `1 BTCX = 0.20 CNY` is a test value only, not a production rate recommendation.
 7. Create a CNY invoice in a non-mainnet staging stack and inspect the persisted snapshot: CNY amount/currency, BTCX amount/currency, rate, source, and timestamp. A rate change applies to newly created invoices; old invoices keep their captured BTCX due amount until expiry.
-8. Apply the pinned XBoard provider patch only to the approved XBoard source revision. Configure the production BTCPay base URL and store ID; mount the scoped Greenfield token and separate webhook HMAC file. Never store their values in XBoard settings or Compose.
+8. Install the standalone [`BtcpayBtcx` XBoard plugin](../integrations/xboard/BtcpayBtcx/README.md) under `plugins/BtcpayBtcx`; do not patch `plugins-core/Btcpay`. Configure its production BTCPay base URL and store ID; mount the scoped Greenfield token and separate webhook HMAC file under `/run/secrets`. Never store secret values in XBoard settings or Compose.
 9. Configure the XBoard notification URL as public HTTPS, register the matching secret with BTCPay's webhook configuration, subscribe to `InvoiceSettled`, and verify signature, invoice/order metadata, amounts, payment method and idempotent status handling in isolated staging.
 10. Confirm BTCPay, node RPC+REST, electrs Electrum, PostgreSQL readiness, TLS expiry monitoring, and backup alerts. Run the staging smoke below before any production authorization.
 

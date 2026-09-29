@@ -8,11 +8,11 @@ This repository provides an external BTCPay Server plugin for accepting BTCX on-
 - **BTCX/CNY pricing** uses an administrator-entered manual rate in BTCPay. Invoice creation records an immutable rate and timestamp snapshot.
 - **Wallet RPC** is provided by a dedicated Bitcoin-PoCX node wallet. The plugin allocates receive addresses through the node's authenticated wallet RPC.
 - **Payment discovery** uses **electrs-btcx**, with **bindex-btcx** built into electrs as its BTCX indexing dependency.
-- **XBoard Greenfield integration** is supplied as a provider patch and instructions under [`integrations/xboard`](integrations/xboard). XBoard itself is not included or modified here.
+- **XBoard Greenfield integration** is an independent `BtcpayBtcx` payment plugin under [`integrations/xboard/BtcpayBtcx`](integrations/xboard/BtcpayBtcx/README.md). It registers `BTCPayBTCX` and coexists with the untouched XBoard `BTCPay` plugin. XBoard itself is not included or modified here.
 
 ## Validation status
 
-The final isolated staging/regtest E2E passed: BTCPay created a CNY invoice using `BTCX-CHAIN`, a real regtest payment was detected and confirmed, and a signed Greenfield webhook caused the matching XBoard order to reach paid status. This validates the documented staging path only.
+The isolated staging/regtest E2E passed for the standalone XBoard `BtcpayBtcx` plugin: BTCPay created a CNY invoice using `BTCX-CHAIN`, a real regtest payment was detected and confirmed, and a signed Greenfield webhook caused the matching XBoard order to reach paid status. A signed duplicate callback returned HTTP 200 without changing the paid order or creating another delivery record. This validates staging only.
 
 BTCX mainnet address allocation is **disabled by default**. It requires the explicit `BTCX:Wallet:AllowMainnet=true` setting and is rejected when the host environment is `Development` or `Staging`. This version still requires manual mainnet acceptance before any production use; staging results do not establish mainnet readiness.
 

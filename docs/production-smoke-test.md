@@ -2,7 +2,7 @@
 
 This is a required pre-release test plan. It must run only on an isolated non-mainnet deployment; no production hostname, wallet, database, XBoard, token, webhook key, or real funds may be used.
 
-The earlier BTCX staging acceptance passed: Greenfield CNY invoice, real 61.7 BTCX regtest payment, six confirmations, `InvoiceSettled`, and XBoard order paid. That was against the prior staging stack. **This exact smoke has not yet been run against the new production Dockerfiles and final BTCPay generator output**, so it remains a release gate.
+The 2026-09-29 standalone XBoard integration E2E passed against the currently running isolated staging stack: CNY 12.34 invoice, 61.7 BTCX regtest payment, six confirmations, `InvoiceSettled`, paid XBoard order, and successful duplicate callback replay. **This exact smoke has not yet been run against the new production Dockerfiles and final BTCPay generator output**, so the production-like release gate remains open.
 
 ## Candidate setup
 
@@ -15,7 +15,7 @@ The earlier BTCX staging acceptance passed: Greenfield CNY invoice, real 61.7 BT
 ## Payment and webhook flow
 
 1. Create an isolated CNY BTCPay store and enable `BTCX-CHAIN`; configure `BTCX_CNY` to `manualbtcx(BTCX_CNY)`. For a deterministic fixture only, set `1 BTCX = 0.20 CNY`.
-2. Apply the provider-only patch to the exact XBoard test revision and configure isolated Greenfield/HMAC secret files.
+2. Install `integrations/xboard/BtcpayBtcx` into the exact XBoard test revision as `plugins/BtcpayBtcx`, install/enable `btcpay_btcx`, and configure its isolated Greenfield/HMAC secret files. Keep original `plugins-core/Btcpay` at the pinned upstream source.
 3. Create an XBoard test order for CNY 12.34. Verify Greenfield metadata contains the expected `orderId`, BTCPay uses BTCX, and the invoice snapshot holds CNY amount, 61.7 BTCX, rate 0.20, source `manual`, and timestamp. A subsequent rate update must not reprice this invoice.
 4. Verify checkout destination, BTCX URI and QR. Pay exactly 61.7 BTCX from the regtest wallet to the invoice address. Do not use any mainnet wallet or funds.
 5. Confirm Electrum history discovers the transaction; Bitcoin-PoCX RPC verifies its txid, exact output script/amount and canonical block. Confirm the configured LowSpeed policy settles at six confirmations.
@@ -24,4 +24,4 @@ The earlier BTCX staging acceptance passed: Greenfield CNY invoice, real 61.7 BT
 
 ## Acceptance gate
 
-Pass requires all four services healthy, plugin loaded, node RPC and REST responding, Electrum response and caught-up index, exact payment observed, six-confirmation settlement, signed webhook accepted, duplicate safe, XBoard order paid, and failure cases with expected outcomes. Save the generated Compose and image/patch locks as non-secret release evidence. Do not label production ready based only on the historical staging E2E.
+Pass requires all four services healthy, BTCPay and XBoard plugins loaded, node RPC and REST responding, Electrum response and caught-up index, exact payment observed, six-confirmation settlement, signed webhook accepted, duplicate safe, XBoard order paid, and failure cases with expected outcomes. Save the generated Compose, source/image locks, and non-secret release evidence. Do not label production ready based only on staging E2E.

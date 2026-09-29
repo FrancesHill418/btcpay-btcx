@@ -1,10 +1,12 @@
 # MILESTONE 04 — XBoard Greenfield provider integration
 
+**Historical implementation note:** this milestone records the superseded patch-based integration. The current production integration is the standalone [`BtcpayBtcx` plugin](../integrations/xboard/BtcpayBtcx/README.md); the former patch was removed during the 2026-09-29 architecture refactor. The original XBoard `plugins-core/Btcpay` source is preserved unchanged.
+
 Status: provider implementation and isolated provider tests complete. No development BTCPay/XBoard deployment or live webhook was available, so external runtime E2E remains unverified.
 
 ## Pinned source and change boundary
 
-Target XBoard is `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`. The integration is a commit against its existing `plugins-core/Btcpay` provider only (`a59be7b`). The reproducible patch is [0001-btcpay-btcx-provider.patch](../integrations/xboard/0001-btcpay-btcx-provider.patch). It adds the provider's invoice-binding/webhook tables and isolated provider tests; XBoard core and order/payment service files are unchanged.
+Target XBoard was `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`. The historical integration modified its existing `plugins-core/Btcpay` provider. That approach is deprecated; use the standalone plugin linked above.
 
 ## Invoice creation and order binding
 
