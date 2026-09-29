@@ -1,7 +1,7 @@
 # Production candidate version matrix
 
 **Candidate date:** 2026-09-29
-**Release candidate:** `v0.1.0-rc3` (annotated local tag; planned target is the documentation-complete release-preparation commit recorded in the release manifest).
+**Release candidate:** `v0.1.0-rc3` (annotated local tag; target `a0a0cd78c6410fd3bcf64d996366fa480213402d`, release-preparation candidate; tag is local and not pushed).
 **Status:** candidate lock only; not a production approval. The RC2 tag predates the standalone XBoard plugin and is not reusable.
 
 Every requested upstream SHA below was queried from the named GitHub repository's commit endpoint on 2026-09-29 (HTTP 200); source checkouts also fetched the Bitcoin-PoCX, electrs-btcx and bindex-btcx commit objects. No SHA was substituted. The repo commit is verified locally. The exact upstream targets are:
