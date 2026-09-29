@@ -5,7 +5,7 @@
 
 ## Release-hardening progress (2026-09-29)
 
-The repository follow-up created a local `v0.1.0-rc3` candidate at `a0a0cd78c6410fd3bcf64d996366fa480213402d` (never pushed), freezes the requested component commits, verifies each requested upstream SHA, centralizes the required Bitcoin-PoCX REST compatibility patches, pins the BTCPay helper image digests that were available, adds locked NuGet restore inputs, a fail-closed production Compose template, release CI and backup/restore runbook. See [production-version-matrix.md](production-version-matrix.md) and [release-manifest-v0.1.0-rc3.md](release-manifest-v0.1.0-rc3.md) for final tag and artifact evidence.
+The local annotated `v0.1.0-rc3` tag points to final HEAD `b7dbd0aabd6be84ba61a91d57b468213969bf21f`. It includes the standalone BtcpayBtcx architecture and the release-hardening work; the tag has not been published remotely. The older `v0.1.0-rc2` predates the standalone plugin architecture and is not reused. This freezes the requested component commits, records the required Bitcoin-PoCX REST compatibility patches, pins available BTCPay helper image digests, and includes locked NuGet inputs, a fail-closed production Compose template, release CI and backup/restore runbook. See [production-version-matrix.md](production-version-matrix.md) and [release-manifest-v0.1.0-rc3.md](release-manifest-v0.1.0-rc3.md) for tag and artifact evidence.
 
 The architecture and hardening commits are included in the local RC3 candidate; `origin/main` and remote tags remain unchanged. The former patch-artifact finding is closed as a source-layout issue, but the patch itself still requires independent review/upstream disposition. Runtime application images have not yet been built/published in the release workflow, so there are no custom registry digests, release SBOM/provenance artifacts or vulnerability review results. Local package preparation exposed a moderate advisory against the pinned BTCPay build graph's `Microsoft.Build.Tasks.Git 8.0.0` dependency (CVE-2026-62900). The release build now overrides that build-only dependency to patched `10.0.303` from this repository's `Directory.Build.targets`, locks the version/hash, and locked restore/build no longer emits NU1902; no BTCPay core source was changed and the `.btcpay` package does not contain the build task. The pinned BTCPay `BTCPAY_UPDATEURL` is admin update-notification metadata only; code inspection confirmed it reads a GitHub release tag for display and does not fetch or install a runtime image. Helper images in the checked-in generated snapshot now use real digest-qualified refs. Production-host, custody/restore drill, ingress/DNS/secrets, final-image regtest/SBOM vulnerability review, real-device Phoenix compatibility decision and named operational approvals remain open.
 
@@ -13,9 +13,9 @@ The architecture and hardening commits are included in the local RC3 candidate; 
 
 | Item | Pinned value / finding |
 |---|---|
-| `btcpay-btcx` application source candidate | `957b8a721b8101ab8260cbf74e6d23eb5eefbfa0`; RC3 tag target includes release-hardening commits listed in the release manifest |
-| `origin/main` | `c3a9861e2db03c047fd9e41e02e19d23d6a260da`; local `main` is four commits ahead and has not been published |
-| Existing tag | Annotated tag object `f5d6449453713144d093bc8259f3b0c3e0cd78c2`, peeled commit `2925af8b19174ad24418529407a4a408cfdf5e59`, before the standalone XBoard plugin commits; **do not use as the production release** |
+| `btcpay-btcx` application source candidate | `957b8a721b8101ab8260cbf74e6d23eb5eefbfa0`; current local RC3 points to final HEAD `b7dbd0aabd6be84ba61a91d57b468213969bf21f` and includes standalone BtcpayBtcx |
+| `origin/main` | `c3a9861e2db03c047fd9e41e02e19d23d6a260da`; local `main` is eight commits ahead and has not been published |
+| `v0.1.0-rc2` | Annotated tag object `f5d6449453713144d093bc8259f3b0c3e0cd78c2`, peeled commit `2925af8b19174ad24418529407a4a408cfdf5e59`, before the standalone XBoard plugin commits; **do not use as the production release** |
 | XBoard target | `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` |
 | BTCPay Server | `v2.4.4`, source commit `2d5a0d8077bb33af080e949031da33d84b80638d`; base image index `sha256:c264aa08cd32a469bd30d41978b73dc8bb2de1503ce67bdb0ab8fd5d934fb614` |
 | BTCPay BTCX plugin | package version `0.1.0`; source candidate is the repository commit above; no published production package checksum/attestation |
@@ -24,7 +24,7 @@ The architecture and hardening commits are included in the local RC3 candidate; 
 | bindex-btcx | commit `eda7c70660baa06affef464c7ea1e131c39304f1`, built into electrs; not a service |
 | Phoenix PoCX | `v2.4.0`, commit `bc4713306c9c2cd3cbf989a3e355e0705b485218`; client compatibility reference only; real-device E2E is not verified |
 
-**Release choice:** no production release is approved. RC3 is a local non-production candidate for build/test; its exact tag target is recorded in the release manifest. Do not promote `v0.1.0-rc2`.
+**Release choice:** no production release is approved. The current RC3 includes the standalone BtcpayBtcx architecture, points to final HEAD, and has not been published remotely. RC2 predates that architecture and must not be promoted.
 
 ## XBoard boundary and documentation
 
@@ -42,7 +42,7 @@ It does not modify the original BTCPay provider's tables. Disable the plugin ind
 
 ## Production readiness blockers
 
-1. Current source is not on `origin/main`, and the existing RC tag predates the standalone-plugin architecture.
+1. Current source is eight commits ahead of `origin/main` and has not been published. The old RC2 predates the standalone-plugin architecture; current local RC3 includes it and points to final HEAD but remains unpublished.
 2. No production Bitcoin-PoCX image was completed; custom images have no published immutable registry manifest digests, provenance, SBOM/signatures or vulnerability review. The BTCPay/electrs local image IDs are not deployable registry locks.
 3. The two PoCX v30 REST compatibility patches are required by the selected bindex/electrs and are only development compatibility backports. They are not independently production-reviewed or upstream-merged. Their hashes and exact base are in `image-lock.md`.
 4. The checked-in generated BTCPay snapshot now pins helper images by real registry digest. `BTCPAY_UPDATEURL` still names `/releases/latest`, but this is admin-only update-notification metadata and does not alter runtime images; preserve upstream behavior. The selected operator ingress helper images and final generated stack still need review and real-host validation.

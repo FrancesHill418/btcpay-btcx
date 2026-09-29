@@ -1,7 +1,7 @@
 # Production candidate version matrix
 
 **Candidate date:** 2026-09-29
-**Release candidate:** `v0.1.0-rc3` (annotated local tag; target `a0a0cd78c6410fd3bcf64d996366fa480213402d`, release-preparation candidate; tag is local and not pushed).
+**Release candidate:** `v0.1.0-rc3` (annotated local tag; target `b7dbd0aabd6be84ba61a91d57b468213969bf21f`, final HEAD; tag is local and not pushed).
 **Status:** candidate lock only; not a production approval. The RC2 tag predates the standalone XBoard plugin and is not reusable.
 
 Every requested upstream SHA below was queried from the named GitHub repository's commit endpoint on 2026-09-29 (HTTP 200); source checkouts also fetched the Bitcoin-PoCX, electrs-btcx and bindex-btcx commit objects. No SHA was substituted. The repo commit is verified locally. The exact upstream targets are:
@@ -10,7 +10,7 @@ The three requested XBoard architecture commits are ancestors of the frozen `957
 
 | Component | Version/ref | Repository | Commit | Role/status |
 |---|---|---|---|---|
-| `btcpay-btcx` | candidate `v0.1.0-rc3`; plugin package `0.1.0` | `FrancesHill418/btcpay-btcx` | `957b8a721b8101ab8260cbf74e6d23eb5eefbfa0` | Frozen application/payment source candidate; RC tag also includes release hardening and its final documentation commit (see release manifest). |
+| `btcpay-btcx` | candidate `v0.1.0-rc3`; plugin package `0.1.0` | `FrancesHill418/btcpay-btcx` | `b7dbd0aabd6be84ba61a91d57b468213969bf21f` | Current local RC3 tag target and final HEAD; includes standalone BtcpayBtcx architecture and release hardening. Frozen application/payment source: `957b8a721b8101ab8260cbf74e6d23eb5eefbfa0`. |
 | XBoard | pinned commit | `cedar2025/Xboard` | `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` | Integration/API compatibility target. Original provider remains `BTCPay`. |
 | BTCPay Server | `v2.4.4` | `btcpayserver/btcpayserver` | `2d5a0d8077bb33af080e949031da33d84b80638d` | Plugin target and unchanged upstream server base. |
 | Bitcoin-PoCX | pinned commit; bundled Bitcoin source v30.2.1 | `PoC-Consortium/bitcoin-pocx` | `005bf0098e217b76a2627bfae458dff4f5718dd5` | Node and wallet RPC. Its `bitcoin` submodule is `b88b852644f629cd5f25b3424d11b462462c24b3`. |

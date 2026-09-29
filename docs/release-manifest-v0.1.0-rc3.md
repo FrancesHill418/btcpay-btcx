@@ -1,7 +1,7 @@
 # Release manifest: v0.1.0-rc3
 
 **Status:** release candidate for build and review only; **NOT READY / NO-GO for production**.
-**Tag:** local annotated `v0.1.0-rc3`, targeting `a0a0cd78c6410fd3bcf64d996366fa480213402d`. It has not been pushed.
+**Tag:** local annotated `v0.1.0-rc3`, targeting final HEAD `b7dbd0aabd6be84ba61a91d57b468213969bf21f`. It has not been pushed.
 **Functional source freeze:** `957b8a721b8101ab8260cbf74e6d23eb5eefbfa0`. The tag also includes the release-hardening, CI and operations-documentation commits preceding the tag target.
 **Existing `v0.1.0-rc2`:** predates the standalone XBoard plugin and is not reused.
 
@@ -9,7 +9,7 @@
 
 | Component | Version/ref | Immutable commit | Notes |
 |---|---|---|---|
-| btcpay-btcx | `v0.1.0-rc3` candidate; plugin package `0.1.0` | `a0a0cd78c6410fd3bcf64d996366fa480213402d` tag target; application source freeze `957b8a721b8101ab8260cbf74e6d23eb5eefbfa0` | Local tag only. |
+| btcpay-btcx | `v0.1.0-rc3` candidate; plugin package `0.1.0` | `b7dbd0aabd6be84ba61a91d57b468213969bf21f` tag target; application source freeze `957b8a721b8101ab8260cbf74e6d23eb5eefbfa0` | Local tag only; includes standalone BtcpayBtcx architecture. |
 | XBoard | pinned target | `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` | Standalone plugin installs at `XBoard/plugins/BtcpayBtcx/`, payment method `BTCPayBTCX`; original `BTCPay` remains separate. |
 | BTCPay Server | `v2.4.4` | `2d5a0d8077bb33af080e949031da33d84b80638d` | Core unchanged; production wrapper image not yet published. |
 | Bitcoin-PoCX | pinned | `005bf0098e217b76a2627bfae458dff4f5718dd5` | Bundled Bitcoin source `b88b852644f629cd5f25b3424d11b462462c24b3`. |
