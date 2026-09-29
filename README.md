@@ -20,6 +20,10 @@ BTCX mainnet address allocation is **disabled by default**. It requires the expl
 
 The isolated regtest stack and payment walkthrough are documented in [`integrations/staging/HEALTHCHECKS.md`](integrations/staging/HEALTHCHECKS.md). The stack uses BTCPay Server v2.4.4, Bitcoin-PoCX, electrs-btcx, and PostgreSQL. Do not use staging credentials or regtest instructions for production.
 
+## Production preparation
+
+Production remains **NOT READY**. The release candidate, exact dependency refs, and remaining blockers are recorded in the [production audit](docs/production-readiness-audit-2026-09-29.md), [version matrix](docs/production-version-matrix.md), [RC3 release manifest](docs/release-manifest-v0.1.0-rc3.md), and [deployment package](deploy/production/README.md). Review the [deployment procedure](docs/production-deployment.md) and [backup/restore runbook](docs/operations/production-backup-restore.md). This work does not authorize mainnet access, production deployment, or real-fund payments.
+
 ## License
 
 Project-authored source and documentation are licensed under the [MIT License](LICENSE), copyright FrancesHill418. Third-party source and adapted material retain their own licenses and notices; see [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md). The project MIT license does not replace or relicense third-party components.

@@ -1,5 +1,7 @@
 # TASK 03 — BTCX receiving payment implementation plan
 
+**Historical plan:** this checklist predates the completed payment listener and standalone XBoard plugin. Do not treat its older status statements as current. See [PROJECT-STATE](PROJECT-STATE.md) and the [production version matrix](production-version-matrix.md).
+
 Status: staged implementation. Network/address/amount, node RPC, receiving address provider, mock payment discovery, confirmation/reorg state mapping, and Phoenix-compatible URI/QR are implemented; no real blockchain payment has been accepted end-to-end. Do not treat this document as approval to deploy or use mainnet.
 
 ## Baseline and design constraints

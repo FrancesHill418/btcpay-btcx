@@ -1,3 +1,7 @@
+# Historical XBoard provider review
+
+This checklist reviewed the superseded patch-based integration and is not a current implementation guide. Current production/staging installation uses the independent [`BtcpayBtcx` plugin](../integrations/xboard/BtcpayBtcx/README.md) and must not modify `plugins-core/Btcpay/Plugin.php`. Retain this file only as historical review context; use the standalone plugin tests and current deployment checklist for release evidence.
+
 # Greenfield webhook validation and XBoard payment state
 
 **Pinned versions:** BTCPay Server `v2.4.4` (`2d5a0d8077bb33af080e949031da33d84b80638d`); XBoard `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`. Findings below are source-based. XBoard production files were not modified.

@@ -36,7 +36,7 @@ docker compose exec btcpay curl --fail --silent http://127.0.0.1:49392/api/v1/he
 
 For index catch-up, compare the node's `blocks`/`headers` with an Electrum `blockchain.headers.subscribe` response. Check server logs for index completion and ensure an address query returns normally. The healthcheck intentionally does not claim the index is synchronized merely because the listener opened.
 
-The pinned PoCX source is based on Bitcoin Core v30.2.1 and lacks the `/rest/blockpart` route required by pinned bindex-btcx. The staging Dockerfile applies `integrations/electrs-btcx/bitcoin-pocx-v30-blockpart-compat.patch`; this is a development bridge only, and startup/index failures must be treated as failures rather than bypassed.
+The pinned PoCX source is based on Bitcoin Core v30.2.1 and lacks the `/rest/blockpart` route required by pinned bindex-btcx. The staging Dockerfile applies both patches from `patches/electrs-pocx-rest/`; this is a development bridge only, and startup/index failures must be treated as failures rather than bypassed.
 
 ## Payment path smoke
 

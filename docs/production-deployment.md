@@ -16,7 +16,7 @@ Do not proceed to a mainnet deployment until all are closed with evidence and ap
 * production-like staging smoke in [production-smoke-test.md](production-smoke-test.md) passed using release candidate images and the standalone XBoard `BtcpayBtcx` plugin;
 * Phoenix real-device test status explicitly accepted by the release owner. Current project evidence says it is pending.
 
-The current source references and open gates are summarized in [PROJECT-STATE.md](PROJECT-STATE.md), [image-lock.md](image-lock.md), and [production-security-checklist.md](production-security-checklist.md). Creating `v0.1.0-rc2` does not close them or authorize deployment.
+The current source references and open gates are summarized in [PROJECT-STATE.md](PROJECT-STATE.md), [production-version-matrix.md](production-version-matrix.md), [image-lock.md](image-lock.md), and [production-security-checklist.md](production-security-checklist.md). `v0.1.0-rc2` predates the standalone XBoard integration and is not a release candidate for this architecture. The new `v0.1.0-rc3` tag is a candidate only and does not authorize deployment.
 
 ## 1. Clean-machine prerequisites
 
@@ -48,21 +48,18 @@ For repeatable production, commit those changes in the approved fork and pin its
 Build the Bitcoin-PoCX and electrs images from the repository root so Docker build contexts include the pinned sources and patches:
 
 ```sh
-docker build --pull=false -f integrations/production/bitcoin-pocx/Dockerfile \
-  -t registry.example.invalid/btcx/bitcoin-pocx:0.1.0-rc2 .
-docker build --pull=false -f integrations/production/electrs/Dockerfile \
-  -t registry.example.invalid/btcx/electrs-btcx:0.1.0-rc2 .
-docker build --pull=false -f integrations/production/btcpay/Dockerfile \
-  -t registry.example.invalid/btcx/btcpayserver:0.1.0-rc2 .
+docker buildx build --platform linux/amd64 --file integrations/production/bitcoin-pocx/Dockerfile --output type=oci,dest=artifacts/bitcoin-pocx.oci.tar .
+docker buildx build --platform linux/amd64 --file integrations/production/electrs/Dockerfile --output type=oci,dest=artifacts/electrs-btcx.oci.tar .
+docker buildx build --platform linux/amd64 --file integrations/production/btcpay/Dockerfile --output type=oci,dest=artifacts/btcpayserver.oci.tar .
 ```
 
-Run `docker image inspect` on the final published references, record registry manifest digest, image config ID, build arguments, source commits and patch hashes in the deployment lock record, then configure `BTCX_NODE_IMAGE` and `BTCX_ELECTRS_IMAGE` as `registry/name:tag@sha256:<manifest-digest>`. The example registry and digests above are deliberately not supplied: no production image has been published or assigned a real digest in this repository.
+The repository release workflow is the authoritative locked build, including digest-pinned BuildKit and SBOM generator plus provenance. The local commands above are illustrative only; they do not publish or produce registry digests. To publish, use `scripts/publish-production-images.sh` from a clean approved RC checkout after registry credentials are provisioned outside the repository. Inspect the real registry manifest digest, image config ID, platform, provenance/SBOM and Dockerfile checksums before setting the production `*_IMAGE` variables. No registry or credentials are assumed here.
 
 Build the plugin using [package-plugin.sh](../scripts/package-plugin.sh) and follow [plugin-release-package.md](plugin-release-package.md). It targets .NET 10 and BTCPay v2.4.4. Upload the `.btcpay` artifact using **Server Settings → Plugins → Upload** in a non-production validation instance and verify the plugin is listed/loaded. Do not configure `DEBUG_PLUGINS`; it is a local development mechanism only and is prohibited in production.
 
 ## 3. Secrets and environment
 
-Start from [`integrations/production/.env.example`](../integrations/production/.env.example). Copy it into the operator's protected deployment directory, not Git. It contains only non-secret values and secret-file paths. Deliver secret contents from a managed secret provider or Docker secrets; do not put secret values in `.env`, Compose, Dockerfiles, command-line arguments, image layers, README or logs.
+Use [`deploy/production/.env.example`](../deploy/production/.env.example) only as a production template. It is intentionally incomplete and separate from [`integrations/production/.env.example`](../integrations/production/.env.example), which is staging/regtest material. Copy the production template into the operator's protected deployment directory, not Git. Deliver secret contents from a managed secret provider or Docker secrets; do not put secret values in `.env`, Compose, Dockerfiles, command-line arguments, image layers, README or logs.
 
 Required production secret material:
 

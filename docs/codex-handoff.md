@@ -1,4 +1,6 @@
-# Codex handoff — TASK 03 preparation
+# Historical Codex handoff — TASK 03 preparation
+
+**Superseded project state.** The notes below describe an early skeleton and are not current status. Use [PROJECT-STATE](PROJECT-STATE.md), [production readiness audit](production-readiness-audit-2026-09-29.md), and [release manifest](release-manifest-v0.1.0-rc3.md).
 
 ## Current state
 

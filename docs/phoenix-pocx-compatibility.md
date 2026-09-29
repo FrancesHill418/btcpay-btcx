@@ -1,5 +1,7 @@
 # TASK 02.2 — Phoenix PoCX compatibility audit
 
+**Historical validation report:** references below describe the earlier payment-link skeleton. Use the current [BTCX implementation map](btcx-implementation-map.md) and [staging E2E record](staging-deployment.md) for payment-flow status. Real Phoenix device compatibility remains pending.
+
 Audit date: 2026-09-28  
 Audited Phoenix release: `v2.4.0`  
 Commit: [`bc4713306c9c2cd3cbf989a3e355e0705b485218`](https://github.com/PoC-Consortium/phoenix-pocx/commit/bc4713306c9c2cd3cbf989a3e355e0705b485218)

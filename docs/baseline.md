@@ -2,6 +2,8 @@
 
 **Initial audit:** 2026-09-26. **Current baseline synchronized:** 2026-09-28. Upstream sources were fetched into temporary directories under `/tmp/btcpay4btcx-*` for inspection. Those working copies are not project dependencies and are not tracked here. Each source below is pinned by commit SHA; tags/branches are labels, not floating dependency selectors. Current task completion and blockers are summarized in [PROJECT-STATE.md](PROJECT-STATE.md).
 
+**Historical audit snapshot:** use [production-version-matrix.md](production-version-matrix.md) for the current release candidate. Branch names below record the original inspection context and are not production source selectors.
+
 ## BTCPay
 
 - **Locked target:** BTCPay Server `v2.4.4`.

@@ -1,4 +1,6 @@
-# TASK 02.1 — BTCX runtime integration smoke test
+# Historical TASK 02.1 — BTCX runtime integration smoke test
+
+**Historical:** this report predates the completed payment listener and standalone XBoard integration. Its “skeleton” result is not current release evidence. See [staging deployment](staging-deployment.md) for the later standalone-plugin E2E and [release manifest](release-manifest-v0.1.0-rc3.md) for current validation status.
 
 Date: 2026-09-27
 

@@ -1,4 +1,6 @@
-# BTCX staging release checklist
+# Historical staging release checklist
+
+**Superseded:** this checklist predates the production image build pipeline and standalone XBoard plugin. Do not follow its `development-complete` tag or patch instructions. For current source/image locks see [production-version-matrix.md](production-version-matrix.md); for the current RC release record see [release-manifest-v0.1.0-rc3.md](release-manifest-v0.1.0-rc3.md); for production stop conditions see [production-deployment.md](production-deployment.md).
 
 Use this checklist for an isolated staging release from the `development-complete` baseline. Attach evidence to the operator's private change record; never attach secrets, wallet files, database dumps, or volume contents.
 
@@ -8,8 +10,8 @@ Use this checklist for an isolated staging release from the `development-complet
 - [ ] Verify clean source checkout and initialized BTCPay submodule at v2.4.4 commit `2d5a0d8077bb33af080e949031da33d84b80638d`.
 - [ ] Verify `.NET SDK 10.0.401` and record build output.
 - [ ] Build/publish the plugin in Release configuration; record artifact checksum and source commit.
-- [ ] Verify plugin manifest and DLL are present; review plugin metadata before any public distribution (current description still says “skeleton”).
-- [ ] Verify XBoard patch applies only to pinned commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`; record that patch is provider-only.
+- [ ] Verify plugin manifest and DLL are present and match the release manifest.
+- [ ] Install the standalone `integrations/xboard/BtcpayBtcx` directory as `XBoard/plugins/BtcpayBtcx`; never modify `plugins-core/Btcpay`.
 - [ ] Record pinned Bitcoin-PoCX, bindex-btcx, and electrs-btcx revisions. For staging, record the development `/rest/blockpart` compatibility patch and its checksum.
 
 ## Isolation and secrets

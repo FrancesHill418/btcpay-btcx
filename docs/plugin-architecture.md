@@ -1,4 +1,6 @@
-# BTCX BTCPay plugin skeleton
+# Historical BTCX BTCPay plugin skeleton design
+
+**Superseded implementation snapshot.** This describes the early non-payable skeleton and is not the current payment-flow or production guide. The implemented BTCX payment behavior and release locks are documented in [README](../README.md), [BTCX implementation map](btcx-implementation-map.md), and [production version matrix](production-version-matrix.md). Do not use this document to infer current runtime capabilities.
 
 **Plugin:** `BTCPayServer.Plugins.BTCX` v0.1.0. **BTCPay target:** v2.4.4, submodule commit `2d5a0d8077bb33af080e949031da33d84b80638d`. This implementation adds the plugin entry, BTCX payment-method skeleton, manual BTCX/CNY rate source, administrator settings page, immutable quote details, and unit tests. It does not implement a BTCX node, wallet, transaction listener, scanner, confirmation processing, or withdrawal.
 

@@ -16,7 +16,7 @@ The root Compose file is now a runtime lock manifest: each service image is pinn
 | electrs-btcx | tag `v0.11.1-btcx.1`, commit `2f78c63e20215e20944767f0901209c4d740fe5b` |
 | XBoard source for provider integration | commit `4f48e61a2cbc6db5338872b6bdb45ef954ec1256` |
 
-The pinned, unmodified Bitcoin-PoCX source lacks `/rest/blockpart/`, which the pinned bindex/electrs startup probe requires. The repository contains `integrations/electrs-btcx/bitcoin-pocx-v30-blockpart-compat.patch` and `integrations/electrs-btcx/bitcoin-pocx-v30-net-processing-compat.patch`, development-only compatibility backports tested on isolated regtest. The staging node Dockerfile applies both patches to the exact pinned source. They are not upstream releases and are **not approved as production artifacts**; revalidate against a supported upstream version before any production review. Do not change consensus rules.
+The pinned, unmodified Bitcoin-PoCX source lacks `/rest/blockpart/`, which the pinned bindex/electrs startup probe requires. The repository contains the two development-only compatibility backports under `patches/electrs-pocx-rest/`, tested on isolated regtest. The staging node Dockerfile applies both patches to the exact pinned source. They are not upstream releases and are **not approved as production artifacts**; revalidate against a supported upstream version before any production review. Do not change consensus rules.
 
 ## Build the plugin artifact
 

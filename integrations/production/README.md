@@ -9,7 +9,7 @@ These Dockerfiles and generator fragments are production packaging candidates, n
 * Base: Ubuntu `24.04`, OCI index `sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3`.
 * OS dependencies resolve from Ubuntu snapshot `20260928T000000Z`.
 * Required settings: `server=1`, `rest=1`, `txindex=1`; `/rest/chaininfo.json` and the bindex-required `/rest/blockpart/<hash>.bin?offset=0&size=491` are available on the private RPC/REST listener.
-* Source patches: blockpart backport SHA-256 `9dc06e76a641996fc7831b02f9ba27e39405e926b2a544962070495e2cb1ae21`; v30 net-processing compatibility SHA-256 `bf6e17148c4dc3a7397f310418915a2ccb027c1e4c4f3eff4bbdc60e784055cb`. Both are applied in the Docker build and checked against the pinned source. They alter REST/block file API compatibility, not PoCX consensus rules. They are not independently production-reviewed or upstream-merged.
+* Source patches under [`../../patches/electrs-pocx-rest`](../../patches/electrs-pocx-rest): blockpart backport SHA-256 `9dc06e76a641996fc7831b02f9ba27e39405e926b2a544962070495e2cb1ae21`; v30 net-processing compatibility SHA-256 `bf6e17148c4dc3a7397f310418915a2ccb027c1e4c4f3eff4bbdc60e784055cb`. Both are applied in the Docker build and checked against the pinned source. They alter REST/block-file API compatibility, not PoCX consensus rules. They are not independently production-reviewed or upstream-merged.
 * Runtime supports mainnet (default) and regtest for isolated staging. `/data` is persistent; `/run/btcx-rpc` holds the node cookie used by BTCPay's BTCX wallet RPC. electrs receives a separate `rpcauth` identity via `/run/btcx-electrs-rpc/.cookie`, restricted to the RPC methods it needs; `rpcwhitelistdefault=0` leaves the cookie-authenticated BTCPay wallet identity unrestricted. Do not publish RPC/REST or P2P host ports.
 
 ## Electrs and bindex
@@ -25,17 +25,20 @@ The [`btcpay/Dockerfile`](btcpay/Dockerfile) extends the exact BTCPay Server v2.
 
 ## Build commands
 
-From the repository root (use a reviewed builder and controlled registry):
+For a local, non-publishing RC build, use the exact pinned release toolchain and
+BuildKit builder. To publish, first configure the approved registry and login
+using its credential helper, then use the guarded publisher script:
 
 ```sh
-docker build -f integrations/production/bitcoin-pocx/Dockerfile \
-  -t registry.example.invalid/btcx/bitcoin-pocx:0.1.0-rc2 .
-docker build -f integrations/production/electrs/Dockerfile \
-  -t registry.example.invalid/btcx/electrs-btcx:0.1.0-rc2 .
-docker build -f integrations/production/btcpay/Dockerfile \
-  -t registry.example.invalid/btcx/btcpayserver:0.1.0-rc2 .
+BTCX_RELEASE_TAG=v0.1.0-rc3 BTCX_IMAGE_PREFIX='<approved-registry>/<repository>' \
+  ./scripts/publish-production-images.sh
 ```
 
-Inspect and publish all resulting images, then record OCI manifest digests, image config IDs, platform, build provenance/SBOM and signatures. The example registry is reserved and no candidate registry digest is currently available; replace it only in the protected release environment. Never turn a local image ID into an invented manifest digest.
+This script pushes to the explicit registry and therefore is **not run as part
+of repository validation**. It refuses dirty trees and non-RC tags, pins the
+BuildKit and SBOM generator images, and prints registry manifest digests only
+after a successful push. No registry credentials or destination have been
+provided. For non-publishing verification, the CI workflow builds OCI archives
+with embedded SBOM/provenance attestations.
 
 Generate the BTCPay stack using the official generator and the BTCX fragment. See [BTCPay Docker overlay](btcpayserver-docker/README.md) and [deployment guide](../../docs/production-deployment.md). A clean non-mainnet staging acceptance against the final images remains required.

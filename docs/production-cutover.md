@@ -17,7 +17,7 @@ Do not schedule cutover until all items below have named owners and review evide
 
 ## Preparation (non-production)
 
-1. Build artifacts in reviewed CI from the exact source and dependency lock. Record plugin/XBoard patch checksum, SBOM, scan results and immutable image digests.
+1. Build artifacts in reviewed CI from the exact source and dependency lock. Record the BTCPay `.btcpay` package checksum, standalone XBoard `BtcpayBtcx` source commit/checksum, SBOM, scan results and immutable image digests. Do not apply or generate an XBoard core-provider patch.
 2. Rehearse installation, upgrade, webhook retries/duplicates, manual-rate update, invoice quote lock, expiry, under/overpayment handling, six-confirmation LowSpeed policy, reorg rollback, database restore, wallet restore and index rebuild on isolated non-mainnet systems.
 3. Verify all service endpoints, DNS, certificates, firewall routes, secret file ownership and monitoring from the approved production change record. Do not copy the staging `.env`, volumes, database, wallet, RPC cookie, rate or credentials.
 4. Record current and target artifacts, backups, rollback owner, decision authority, maintenance window, support coverage and stop conditions. Production credentials stay out of this repository and logs.

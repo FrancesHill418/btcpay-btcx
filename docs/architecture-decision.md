@@ -1,3 +1,7 @@
+# Historical architecture decision
+
+This document records the earlier patch-based XBoard design investigation. Its references to modifying `plugins-core/Btcpay/Plugin.php` describe superseded work only. The current integration is the independent [`BtcpayBtcx` plugin](../integrations/xboard/BtcpayBtcx/README.md), registered as `BTCPayBTCX`; the original provider remains `BTCPay` and must not be patched.
+
 # Architecture decision: BTCPay 2.4.4 and XBoard Greenfield
 
 **Status:** architecture decision from TASK 01.6; implementation status has since advanced through TASK 02.2. Current project state and blockers are in [PROJECT-STATE.md](PROJECT-STATE.md). Compatibility basis is BTCPay Server `v2.4.4` at `2d5a0d8077bb33af080e949031da33d84b80638d` and XBoard `4f48e61a2cbc6db5338872b6bdb45ef954ec1256`.
